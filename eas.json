@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 10.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pawconnectbackend.onrender.com/api/v1/auth"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://pawconnectbackend.onrender.com/api/v1/auth"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
