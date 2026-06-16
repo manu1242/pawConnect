@@ -127,6 +127,7 @@ export default function BookingWizardScreen() {
         storeId: bookingDraft.storeId,
         serviceId: bookingDraft.serviceId,
         serviceName: bookingDraft.serviceName,
+        selectedServices: bookingDraft.selectedServices,
         serviceMode: selectedServiceMode,
         price: bookingDraft.price,
         petDetails: petPayload,
@@ -163,7 +164,11 @@ export default function BookingWizardScreen() {
         <TouchableOpacity onPress={() => (step > 1 ? setStep(step - 1) : router.back())}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Book {bookingDraft.serviceName}</Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {bookingDraft.selectedServices && bookingDraft.selectedServices.length > 1
+            ? "Book Services"
+            : `Book ${bookingDraft.serviceName || "Service"}`}
+        </Text>
         <Text style={styles.stepIndicator}>Step {step} of 4</Text>
       </View>
 

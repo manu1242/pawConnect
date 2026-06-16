@@ -63,13 +63,16 @@ export interface Store {
   id: string;
   _id?: any;
   ownerId?: any;
+
   ownerDetails?: {
     name: string;
     fullName?: string;
     email: string;
     phone: string;
+    alternatePhone?: string;
     profilePhoto?: string;
   };
+
   storeDetails?: {
     name?: string;
     description?: string;
@@ -77,14 +80,19 @@ export interface Store {
     images?: string[];
     logo?: string;
   };
+
   name: string;
   description: string;
+
   logo?: string;
   logoImage?: string;
   bannerImage?: string;
   banner?: string;
+
   gallery?: string[];
+
   address: string | Address;
+
   addressDetails?: {
     city?: string;
     area?: string;
@@ -92,22 +100,80 @@ export interface Store {
     state?: string;
     pincode?: string;
   };
+
   services: StoreService[];
+
   storeTypes?: string[];
-  paymentMethods: string[];
-  facilities: string[];
+
+  // NEW
+  serviceMode?: string;
+
   bookingMode: string;
+
+  paymentMethods: string[];
+
+  facilities: string[];
+
+  productCategories?: string[];
+
+  petSaleTypes?: string[];
+
+  yearsOfExperience?: number;
+
+  numberOfEmployees?: number;
+
+  homePickup?: boolean;
+
+  homeDelivery?: boolean;
+
+  emergencyHomeVisit?: boolean;
+
+  serviceRadius?: number;
+
   maxBookingsPerDay: number;
+
   maxHomeVisitsPerDay?: number;
+
   is24x7: boolean;
+
   emergencyContact?: string;
+
   emergencyCharges?: number;
+
+  businessRegNumber?: string;
+
+  gstNumber?: string;
+
+  phone?: string;
+
+  latitude?: number;
+
+  longitude?: number;
+
+  businessHours?: {
+    day: string;
+    isOpen: boolean;
+    openTime: string;
+    closeTime: string;
+  }[];
+
   status: string;
+
   rating?: number;
+
   totalReviews?: number;
+
   totalBookings?: number;
+
+  profileViews?: number;
+
+  storeViews?: number;
+
   isFeatured?: boolean;
+
   isVerified?: boolean;
+
+  verifiedBadge?: boolean;
 }
 
 export interface CustomerLocation {
@@ -122,6 +188,7 @@ export interface Booking {
   storeName?: string;
   serviceName: string;
   serviceId?: string;
+  selectedServices?: { serviceId: string; name: string; price: number }[];
   serviceMode?: string;
   petDetails: Partial<Pet>;
   date: string;

@@ -141,7 +141,7 @@ export default function OwnerServicesScreen() {
               <View style={styles.info}>
                 <Text style={styles.serviceName}>{service.name}</Text>
                 {service.description ? (
-                  <Text style={styles.serviceDesc}>{service.description}</Text>
+                  <Text style={styles.serviceDesc}>{service.description.replace(/\[SERVICE_METADATA:[^\]]*\]/g, "").trim()}</Text>
                 ) : null}
                 <Text style={styles.servicePrice}>₹{service.price}</Text>
               </View>
