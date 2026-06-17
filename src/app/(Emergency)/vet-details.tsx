@@ -100,8 +100,15 @@ export default function VetDetailsScreen() {
 
       {/* Info Section */}
       <View style={styles.infoSection}>
-        <Text style={styles.clinicName}>{clinic.name}</Text>
-        <Text style={styles.clinicAddress}>📍 {clinicAddressStr}</Text>
+        <View style={styles.nameLogoRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.clinicName}>{clinic.name}</Text>
+            <Text style={styles.clinicAddress}>📍 {clinicAddressStr}</Text>
+          </View>
+          {clinic.logo ? (
+            <Image source={{ uri: clinic.logo }} style={styles.clinicLogo} />
+          ) : null}
+        </View>
 
         {/* Rating and Timings info from API */}
         <View style={styles.statsRow}>
@@ -422,5 +429,19 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     marginVertical: 8,
+  },
+  nameLogoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  clinicLogo: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    borderWidth: 2,
+    borderColor: COLORS.emergencyPrimaryOrange,
+    backgroundColor: COLORS.emergencySurface,
   },
 });
