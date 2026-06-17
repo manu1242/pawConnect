@@ -210,7 +210,15 @@ export default function OwnerStoreScreen() {
           emergencyAvailable: true
         }
       ],
-      businessHours: {},
+      businessHours: [
+        { day: "Monday", isOpen: true, openTime: "09:00", closeTime: "18:00" },
+        { day: "Tuesday", isOpen: true, openTime: "09:00", closeTime: "18:00" },
+        { day: "Wednesday", isOpen: true, openTime: "09:00", closeTime: "18:00" },
+        { day: "Thursday", isOpen: true, openTime: "09:00", closeTime: "18:00" },
+        { day: "Friday", isOpen: true, openTime: "09:00", closeTime: "18:00" },
+        { day: "Saturday", isOpen: true, openTime: "09:00", closeTime: "18:00" },
+        { day: "Sunday", isOpen: true, openTime: "09:00", closeTime: "18:00" }
+      ],
       paymentMethods: ["Cash", "UPI", "Card"],
       facilities: ["Parking", "Waiting Area", "AC"], // Must match FACILITIES constants
       bookingMode: "Both", // Must match BOOKING_MODES constants
