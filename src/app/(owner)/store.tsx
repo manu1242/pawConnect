@@ -225,7 +225,7 @@ export default function OwnerStoreScreen() {
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Location:</Text>
                   <Text style={styles.detailVal}>
-                    {store.address?.city} ({store.address?.pincode})
+                    {store.address ? (typeof store.address === "string" ? store.address : `${store.address.city || ""} (${store.address.pincode || ""})`) : "N/A"}
                   </Text>
                 </View>
                 <View style={styles.detailRowCol}>

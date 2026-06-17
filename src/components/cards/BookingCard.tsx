@@ -1,5 +1,5 @@
-import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import React, { useState } from "react";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Booking } from "../../types";
 import { COLORS } from "../../theme/colors";
@@ -12,6 +12,7 @@ interface BookingCardProps {
   onAccept?: () => void;
   onReject?: () => void;
   onComplete?: () => void;
+  onViewDetails?: () => void;
 }
 
 export const BookingCard: React.FC<BookingCardProps> = ({
@@ -21,7 +22,10 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   onAccept,
   onReject,
   onComplete,
+  onViewDetails,
 }) => {
+  const [expanded, setExpanded] = useState(false);
+
   const getStatusColor = (status: Booking["status"]) => {
     switch (status) {
       case "accepted":
@@ -67,19 +71,76 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         )}
       </View>
 
+      {booking.petDetails && (
+        <View style={styles.petDetailsSection}>
+          <TouchableOpacity 
+            style={styles.expandHeader}
+            onPress={() => setExpanded(!expanded)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="paw" size={14} color={COLORS.primary} />
+              <Text style={styles.petHeaderTitle}>Pet Info & Health Docs</Text>
+            </View>
+            <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={14} color={COLORS.textMuted} />
+          </TouchableOpacity>
+          
+          {expanded && (
+            <View style={styles.expandContent}>
+              <View style={styles.gridRow}>
+                <Text style={styles.gridLabel}>Name / Breed:</Text>
+                <Text style={styles.gridValue}>{booking.petDetails.name} ({booking.petDetails.breed || "Dog"})</Text>
+              </View>
+              <View style={styles.gridRow}>
+                <Text style={styles.gridLabel}>Age / Weight:</Text>
+                <Text style={styles.gridValue}>{booking.petDetails.age || "N/A"} / {booking.petDetails.weight || "N/A"}</Text>
+              </View>
+              <View style={styles.gridRow}>
+                <Text style={styles.gridLabel}>Gender:</Text>
+                <Text style={styles.gridValue}>{booking.petDetails.gender || "N/A"}</Text>
+              </View>
+              <View style={styles.gridRow}>
+                <Text style={styles.gridLabel}>Vaccinated:</Text>
+                <Text style={[styles.gridValue, { color: booking.petDetails.vaccinated ? COLORS.success : COLORS.danger, fontWeight: "700" }]}>
+                  {booking.petDetails.vaccinated ? "Yes (Fully)" : "No"}
+                </Text>
+              </View>
+              {booking.petDetails.vaccinationRecords && booking.petDetails.vaccinationRecords.length > 0 && (
+                <View style={styles.recordsSection}>
+                  <Text style={styles.recordsTitle}>Health Documents & Files:</Text>
+                  {booking.petDetails.vaccinationRecords.map((doc: string, index: number) => (
+                    <Text key={index} style={styles.recordLink} numberOfLines={1}>
+                      📄 Doc #{index + 1}: {doc}
+                    </Text>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Buttons based on status and role */}
-      {booking.status === "pending" && (
-        <View style={styles.actions}>
-          {role === "user" && onCancel && (
+      <View style={styles.actions}>
+        <View style={styles.ownerActions}>
+          {onViewDetails && (
             <CustomButton
-              title="Cancel Appointment"
+              title="View Details"
               variant="outline"
-              onPress={onCancel}
-              style={styles.actionBtn}
+              onPress={onViewDetails}
+              style={styles.flexBtn}
             />
           )}
-          {role === "manager" && (
-            <View style={styles.ownerActions}>
+          {booking.status === "pending" && role === "user" && onCancel && (
+            <CustomButton
+              title="Cancel"
+              variant="danger"
+              onPress={onCancel}
+              style={styles.flexBtn}
+            />
+          )}
+          {booking.status === "pending" && role === "manager" && (
+            <>
               {onReject && (
                 <CustomButton
                   title="Reject"
@@ -95,20 +156,17 @@ export const BookingCard: React.FC<BookingCardProps> = ({
                   style={styles.flexBtn}
                 />
               )}
-            </View>
+            </>
+          )}
+          {booking.status === "accepted" && role === "manager" && onComplete && (
+            <CustomButton
+              title="Complete"
+              onPress={onComplete}
+              style={styles.flexBtn}
+            />
           )}
         </View>
-      )}
-
-      {booking.status === "accepted" && role === "manager" && onComplete && (
-        <View style={styles.actions}>
-          <CustomButton
-            title="Mark as Completed"
-            onPress={onComplete}
-            style={styles.actionBtn}
-          />
-        </View>
-      )}
+      </View>
     </View>
   );
 };
@@ -181,5 +239,63 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 38,
     borderRadius: 8,
+  },
+  petDetailsSection: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 12,
+  },
+  expandHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  petHeaderTitle: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  expandContent: {
+    backgroundColor: COLORS.background,
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 6,
+    gap: 6,
+  },
+  gridRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  gridLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+  },
+  gridValue: {
+    fontSize: 11,
+    color: COLORS.text,
+    fontWeight: "600",
+  },
+  recordsSection: {
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 8,
+  },
+  recordsTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  recordLink: {
+    fontSize: 11,
+    color: COLORS.primary,
+    textDecorationLine: "underline",
+    marginTop: 2,
   },
 });

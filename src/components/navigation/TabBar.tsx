@@ -24,30 +24,48 @@ export const TabBar: React.FC = () => {
     pathname === "/" ||
     pathname === "/index";
 
+  const inEmergency = segments[0] === "(Emergency)";
+
   if (!user || isAuthRoute) {
     return null;
   }
 
   const role = user.role;
 
-  // Define tabs based on role
-  const customerTabs = [
-    { name: "Home", route: "/(customer)/home", icon: "home" as const },
-    { name: "Stores", route: "/(customer)/stores", icon: "search" as const },
-    { name: "Bookings", route: "/(customer)/bookings", icon: "calendar" as const },
-    { name: "Pets", route: "/(customer)/pets", icon: "paw" as const },
-    { name: "Profile", route: "/(customer)/profile", icon: "person" as const },
+  interface TabItem {
+    name: string;
+    route: string;
+    icon: any;
+    special?: boolean;
+  }
+
+  // Define tabs based on role and emergency status
+  const customerTabs: TabItem[] = [
+    { name: "Home", route: "/(customer)/home", icon: "home" },
+    { name: "Stores", route: "/(customer)/stores", icon: "search" },
+    { name: "Emergency", route: "/(Emergency)/home", icon: "flash", special: true },
+    { name: "Bookings", route: "/(customer)/bookings", icon: "calendar" },
+    { name: "Pets", route: "/(customer)/pets", icon: "paw" },
+    { name: "Profile", route: "/(customer)/profile", icon: "person" },
   ];
 
-  const ownerTabs = [
-    { name: "Dashboard", route: "/(owner)/dashboard", icon: "grid" as const },
-    { name: "Bookings", route: "/(owner)/bookings", icon: "calendar" as const },
-    { name: "Services", route: "/(owner)/services", icon: "list" as const },
-    { name: "Store", route: "/(owner)/store", icon: "storefront" as const },
-    { name: "Profile", route: "/(owner)/profile", icon: "person" as const },
+  const emergencyTabs: TabItem[] = [
+    { name: "Home", route: "/(Emergency)/home", icon: "home" },
+    { name: "Emergency", route: "/(Emergency)/emergency", icon: "flash", special: true },
+    { name: "Appointments", route: "/(Emergency)/appointments", icon: "calendar" },
+    { name: "My Pets", route: "/(Emergency)/pets", icon: "paw" },
+    { name: "Profile", route: "/(Emergency)/profile", icon: "person" },
   ];
 
-  const tabs = role === "manager" ? ownerTabs : customerTabs;
+  const ownerTabs: TabItem[] = [
+    { name: "Dashboard", route: "/(owner)/dashboard", icon: "grid" },
+    { name: "Bookings", route: "/(owner)/bookings", icon: "calendar" },
+    { name: "Services", route: "/(owner)/services", icon: "list" },
+    { name: "Store", route: "/(owner)/store", icon: "storefront" },
+    { name: "Profile", route: "/(owner)/profile", icon: "person" },
+  ];
+
+  const tabs = role === "manager" ? ownerTabs : (inEmergency ? emergencyTabs : customerTabs);
 
   // Helper to determine if a route is active
   const isActive = (route: string) => {
@@ -61,11 +79,28 @@ export const TabBar: React.FC = () => {
       return isHome || isStoreDetail;
     }
 
+    if (route.startsWith("/(Emergency)/")) {
+      const targetSegment = route.split("/")[2] || "home";
+      const currentSegment = segments[1] || "home";
+      return segments[0] === "(Emergency)" && currentSegment === targetSegment;
+    }
+
     return routeParts.every((part, idx) => segments[idx] === part);
   };
 
   const handlePress = (route: string) => {
     router.replace(route as any);
+  };
+
+  // Select theme colors based on mode
+  const barBg = inEmergency ? COLORS.emergencyBg : COLORS.surface;
+  const barBorder = inEmergency ? COLORS.emergencyBorder : COLORS.border;
+  const getTabColor = (tab: typeof customerTabs[0], active: boolean) => {
+    if (active) {
+      if (tab.special) return COLORS.emergencyRed;
+      return inEmergency ? COLORS.emergencyPrimaryOrange : COLORS.primary;
+    }
+    return inEmergency ? COLORS.emergencyTextMuted : COLORS.textMuted;
   };
 
   return (
@@ -75,6 +110,8 @@ export const TabBar: React.FC = () => {
         {
           height: TAB_BAR_HEIGHT + insets.bottom,
           paddingBottom: insets.bottom,
+          backgroundColor: barBg,
+          borderTopColor: barBorder,
         },
       ]}
     >
@@ -82,6 +119,7 @@ export const TabBar: React.FC = () => {
         {tabs.map((tab) => {
           const active = isActive(tab.route);
           const iconName = active ? tab.icon : (`${tab.icon}-outline` as any);
+          const color = getTabColor(tab, active);
 
           return (
             <TouchableOpacity
@@ -93,12 +131,12 @@ export const TabBar: React.FC = () => {
               <Ionicons
                 name={iconName}
                 size={22}
-                color={active ? COLORS.primary : COLORS.textMuted}
+                color={color}
               />
               <Text
                 style={[
                   styles.tabLabel,
-                  { color: active ? COLORS.primary : COLORS.textMuted },
+                  { color: color },
                 ]}
                 numberOfLines={1}
               >

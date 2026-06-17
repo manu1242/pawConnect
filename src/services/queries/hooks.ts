@@ -5,6 +5,7 @@ import { storeApi } from "../api/storeApi";
 import { bookingApi } from "../api/bookingApi";
 import { feedbackApi } from "../api/feedbackApi";
 import { notificationApi } from "../api/notificationApi";
+import { promoApi } from "../api/promoApi";
 import { User, Pet, Booking, Store, Feedback } from "../../types";
 
 // Auth & Profile Hooks
@@ -214,6 +215,33 @@ export const useUpdateBookingStatusMutation = (role: "user" | "manager") => {
   });
 };
 
+export const useBookingDetails = (bookingId: string, role: "user" | "manager") => {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["booking", bookingId],
+    queryFn: async () => {
+      const cachedBookings = queryClient.getQueryData<Booking[]>(["bookings", role]);
+      if (cachedBookings) {
+        const found = cachedBookings.find(b => (b.id === bookingId || (b as any)._id === bookingId));
+        if (found) {
+          return found;
+        }
+      }
+      if (role === "user") {
+        const res = await bookingApi.listCustomerBookings();
+        const found = res.data.bookings.find(b => (b.id === bookingId || (b as any)._id === bookingId));
+        if (found) return found;
+      } else {
+        const res = await bookingApi.listStoreBookings();
+        const found = res.data.bookings.find(b => (b.id === bookingId || (b as any)._id === bookingId));
+        if (found) return found;
+      }
+      throw new Error("Booking not found");
+    },
+    enabled: !!bookingId,
+  });
+};
+
 // Feedback Mutation
 export const useFeedbackMutation = () => {
   return useMutation({
@@ -236,6 +264,16 @@ export const useMarkNotificationsReadMutation = () => {
     mutationFn: () => notificationApi.markAllAsRead(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+};
+
+export const usePublicPromos = () => {
+  return useQuery({
+    queryKey: ["public-promos"],
+    queryFn: async () => {
+      const res = await promoApi.getPublicPromos();
+      return res.data.promos;
     },
   });
 };

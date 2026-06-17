@@ -46,6 +46,7 @@ function AppNavigationShell() {
     const segs = segments as any[];
     const inAuthGroup = segs[0] === "(auth)";
     const inCustomerGroup = segs[0] === "(customer)";
+    const inEmergencyGroup = segs[0] === "(Emergency)";
     const inOwnerGroup = segs[0] === "(owner)";
     const isRoot = segs.length === 0 || (segs.length === 1 && segs[0] === "");
 
@@ -58,10 +59,10 @@ function AppNavigationShell() {
       // Logged in -> Handle role redirection
       if (user.role === "user") {
         if (inOwnerGroup || inAuthGroup || isRoot) {
-          router.replace("/home" as any);
+          router.replace("/(customer)/home" as any);
         }
       } else if (user.role === "manager") {
-        if (inCustomerGroup || inAuthGroup || isRoot) {
+        if (inCustomerGroup || inEmergencyGroup || inAuthGroup || isRoot) {
           router.replace("/dashboard" as any);
         }
       }
@@ -83,8 +84,10 @@ function AppNavigationShell() {
   const paddingBottom = showTabs ? TAB_BAR_HEIGHT + insets.bottom : 0;
   const paddingTop = insets.top;
 
+  const inEmergency = segments[0] === "(Emergency)";
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: inEmergency ? "#0D0D0D" : COLORS.background }]}>
       <View style={[styles.mainArea, { paddingBottom, paddingTop }]}>
         <Slot />
       </View>
@@ -109,7 +112,6 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   mainArea: {
     flex: 1,

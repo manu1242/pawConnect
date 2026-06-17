@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from "react-native";
+import { router } from "expo-router";
 import { useBookings, useUpdateBookingStatusMutation } from "../../services/queries/hooks";
 import { BookingCard } from "../../components/cards/BookingCard";
 import { useUiStore } from "../../store/uiStore";
@@ -51,6 +52,7 @@ export default function CustomerBookingsScreen() {
                 booking={item}
                 role="user"
                 onCancel={() => handleCancelBooking(bookingId)}
+                onViewDetails={() => router.push(`/bookings/${bookingId}` as any)}
               />
             );
           }}

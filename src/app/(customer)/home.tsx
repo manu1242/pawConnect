@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuthStore } from "../../store/authStore";
 import { useUiStore } from "../../store/uiStore";
-import { useStores } from "../../services/queries/hooks";
+import { useStores, usePublicPromos } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
 import { StoreCard } from "../../components/cards/StoreCard";
 
@@ -15,11 +15,30 @@ const CATEGORIES = [
   { id: "training", name: "school-outline" },
 ];
 
+const screenWidth = Dimensions.get("window").width;
+
 export default function CustomerHomeScreen() {
   const { user } = useAuthStore();
   const { openModal } = useUiStore();
   const { data: stores = [], isLoading } = useStores();
+  const { data: promos = [] } = usePublicPromos();
   const [search, setSearch] = useState("");
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  // Setup swipable banners (fallback to beautiful default banner if none defined)
+  const defaultBanner = {
+    _id: "default-grooming",
+    code: "WELCOME30",
+    title: "30% Off Grooming Sessions Today",
+    description: "Book high-fidelity grooming packages today",
+    discountType: "percentage" as const,
+    discountValue: 30,
+    active: true,
+    displayOnHome: true,
+    bannerImage: "",
+    storeId: null as any
+  };
+  const bannersToDisplay = promos && promos.length > 0 ? promos : [defaultBanner];
 
   const handleCategoryPress = (category: string) => {
     router.push({
@@ -88,25 +107,95 @@ export default function CustomerHomeScreen() {
 
       {/* Promo Banner / Carousel */}
       <View style={styles.bannerContainer}>
-        <View style={styles.banner}>
-          <View style={styles.bannerLeft}>
-            <Text style={styles.bannerLabel}>LIMITED OFFER</Text>
-            <Text style={styles.bannerTitle}>30% Off Grooming Sessions Today</Text>
-            <TouchableOpacity style={styles.bannerBtn} onPress={() => handleCategoryPress("Grooming")}>
-              <Ionicons name="calendar-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-              <Text style={styles.bannerBtnText}>Book now</Text>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onScroll={(e) => {
+            const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 40));
+            setActiveBannerIndex(index);
+          }}
+          scrollEventThrottle={16}
+        >
+          {bannersToDisplay.map((banner, index) => (
+            <TouchableOpacity
+              key={banner._id || index}
+              activeOpacity={0.9}
+              style={[styles.banner, { width: screenWidth - 40, marginRight: bannersToDisplay.length > 1 ? 10 : 0 }]}
+              onPress={() => {
+                if (banner.storeId) {
+                  router.push(`/store/${banner.storeId._id || banner.storeId}` as any);
+                } else {
+                  router.push("/services" as any);
+                }
+              }}
+            >
+              {banner.bannerImage ? (
+                <View style={{ width: "100%", height: "100%", position: "relative" }}>
+                  <Image
+                    source={{ uri: banner.bannerImage }}
+                    style={{ width: "100%", height: "100%", borderRadius: 14 }}
+                    resizeMode="cover"
+                  />
+                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: "rgba(0,0,0,0.5)", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
+                    <Text style={[styles.bannerLabel, { textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 3 }]}>{banner.code}</Text>
+                    <Text style={[styles.bannerTitle, { fontSize: 14, marginBottom: 0, lineHeight: 18, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 3 }]}>{banner.title}</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ flex: 1, flexDirection: "row" }}>
+                  <View style={styles.bannerLeft}>
+                    <Text style={styles.bannerLabel}>{banner.code}</Text>
+                    <Text style={styles.bannerTitle}>{banner.title}</Text>
+                    <View style={styles.bannerBtn}>
+                      <Ionicons name="calendar-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                      <Text style={styles.bannerBtnText}>Claim now</Text>
+                    </View>
+                  </View>
+                  <View style={styles.bannerRight}>
+                    <Ionicons name="gift-outline" size={80} color="rgba(255, 255, 255, 0.2)" />
+                  </View>
+                </View>
+              )}
             </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {bannersToDisplay.length > 1 && (
+          <View style={styles.dotsRow}>
+            {bannersToDisplay.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  activeBannerIndex === index && styles.dotActive
+                ]}
+              />
+            ))}
           </View>
-          <View style={styles.bannerRight}>
-            <Ionicons name="cut-outline" size={80} color="rgba(255, 255, 255, 0.2)" />
-          </View>
-        </View>
-        <View style={styles.dotsRow}>
-          <View style={[styles.dot, styles.dotActive]} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
+        )}
       </View>
+
+      {/* Redesigned Veterinary Care & Emergency Assistance Redirection Banner */}
+      <TouchableOpacity
+        style={styles.emergencyBanner}
+        activeOpacity={0.95}
+        onPress={() => router.replace("/(Emergency)/home" as any)}
+      >
+        <View style={styles.emergencyBannerHeader}>
+          <View style={styles.emergencyBadge}>
+            <Text style={styles.emergencyBadgeText}>VET & EMERGENCY ASSISTANCE</Text>
+          </View>
+          <Ionicons name="pulse" size={20} color="#FFFFFF" />
+        </View>
+        <Text style={styles.emergencyBannerTitle}>PawConnect Redesign Experience</Text>
+        <Text style={styles.emergencyBannerSub}>
+          Helping pet parents find trusted veterinary care, book instant appointments, and get emergency pet assistance.
+        </Text>
+        <View style={styles.emergencyBannerBtn}>
+          <Text style={styles.emergencyBannerBtnText}>Switch to Vet & Emergency Mode</Text>
+          <Ionicons name="arrow-forward" size={14} color="#E53935" style={{ marginLeft: 6 }} />
+        </View>
+      </TouchableOpacity>
 
       {/* Section: Featured Stores (Horizontal Scroll) */}
       <View style={styles.sectionHeader}>
@@ -141,31 +230,45 @@ export default function CustomerHomeScreen() {
         </ScrollView>
       )}
 
-      {/* Section: Services */}
-      <Text style={styles.sectionTitle}>Services</Text>
-      <View style={styles.servicesContainer}>
-        {CATEGORIES.map((cat, index) => {
-          const names = ["Grooming", "Vet Clinic", "Boarding", "Training"];
-          const label = names[index];
-          const iconName = 
-            cat.id === "grooming" ? "cut-outline" :
-            cat.id === "vet" ? "medical-outline" :
-            cat.id === "boarding" ? "home-outline" : "school-outline";
-
-          return (
-            <TouchableOpacity
-              key={cat.id || `cat-${index}`}
-              style={styles.serviceItem}
-              onPress={() => handleCategoryPress(label)}
-            >
-              <View style={styles.serviceIconWrapper}>
-                <Ionicons name={iconName as any} size={24} color={COLORS.primary} />
-              </View>
-              <Text style={styles.serviceText}>{label}</Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Section Header: Services */}
+      <View style={[styles.sectionHeader, { marginBottom: 16, marginTop: 16 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Services</Text>
+          <Text style={styles.sectionSubtitleText}>Everything your pet needs, all in one place 🐾</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push("/services" as any)}>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={styles.seeAllServicesText}>View all services</Text>
+            <Ionicons name="chevron-forward" size={12} color="#C2410C" />
+          </View>
+        </TouchableOpacity>
       </View>
+
+      {/* Horizontal Scroll of Rounded Circles */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalServicesContainer}
+        style={{ marginBottom: 20 }}
+      >
+        {[
+          { id: "Grooming", label: "Grooming", icon: "cut-outline", bg: "#FFF8F6", color: "#FF6B35" },
+          { id: "Vet Clinic", label: "Vet Clinic", icon: "pulse-outline", bg: "#F0F6FF", color: "#3B82F6" },
+          { id: "Boarding", label: "Boarding", icon: "home-outline", bg: "#F0FDF4", color: "#16A34A" },
+          { id: "Training", label: "Training", icon: "school-outline", bg: "#FAF5FF", color: "#7C3AED" },
+        ].map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            style={styles.circularServiceItem}
+            onPress={() => router.push({ pathname: "/services", params: { select: item.id } } as any)}
+          >
+            <View style={[styles.circularIconWrapper, { backgroundColor: item.bg, borderColor: `${item.color}25` }]}>
+              <Ionicons name={item.icon as any} size={24} color={item.color} />
+            </View>
+            <Text style={styles.circularServiceText}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
 
       {/* Section: Nearby Stores */}
       <View style={[styles.sectionHeader, { marginTop: 28 }]}>
@@ -350,35 +453,44 @@ const styles = StyleSheet.create({
   horizontalList: {
     marginBottom: 28,
   },
-  servicesContainer: {
+  sectionSubtitleText: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  seeAllServicesText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#C2410C",
+    marginRight: 2,
+  },
+  horizontalServicesContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 4,
+    gap: 16,
+    paddingHorizontal: 4,
   },
-  serviceItem: {
+  circularServiceItem: {
     alignItems: "center",
-    width: "22%",
+    width: 74,
   },
-  serviceIconWrapper: {
+  circularIconWrapper: {
     width: 60,
     height: 60,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#F4F4F5",
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+    borderWidth: 1.5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
+    shadowOpacity: 0.03,
     shadowRadius: 4,
     elevation: 1,
   },
-  serviceText: {
-    fontSize: 11,
+  circularServiceText: {
+    fontSize: 12,
     fontWeight: "700",
     color: "#27272A",
+    marginTop: 6,
     textAlign: "center",
   },
   verticalListContainer: {
@@ -389,5 +501,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginVertical: 12,
     fontStyle: "italic",
+  },
+  emergencyBanner: {
+    backgroundColor: "#E53935",
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 24,
+    shadowColor: "#E53935",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  emergencyBannerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  emergencyBadge: {
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  emergencyBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  emergencyBannerTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+  emergencyBannerSub: {
+    color: "rgba(255, 255, 255, 0.9)",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "500",
+    marginBottom: 12,
+  },
+  emergencyBannerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
+  },
+  emergencyBannerBtnText: {
+    color: "#E53935",
+    fontSize: 12,
+    fontWeight: "700",
   },
 });

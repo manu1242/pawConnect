@@ -23,9 +23,9 @@ export const PetCard: React.FC<PetCardProps> = ({ pet, onDelete }) => {
   return (
     <TouchableOpacity style={styles.card} onPress={handlePress} activeOpacity={0.85}>
       <View style={styles.iconContainer}>
-        {pet.photo || pet.profileImage ? (
+        {pet.photo || (pet as any).profileImage ? (
           <Image
-            source={{ uri: pet.photo || pet.profileImage }}
+            source={{ uri: pet.photo || (pet as any).profileImage }}
             style={styles.petPhoto}
           />
         ) : (

@@ -28,6 +28,19 @@ export const COLORS = {
   // Glassmorphism helper
   glassBackground: "rgba(255, 255, 255, 0.8)",
   glassBorder: "rgba(229, 231, 235, 0.5)",
+
+  // Emergency Veterinary Redesign Colors (Full Dark Mode)
+  emergencyBg: "#0D0D0D",
+  emergencySurface: "#1A1A1A",
+  emergencySurfaceLight: "#262626",
+  emergencyPrimaryOrange: "#FF6B35",
+  emergencyRed: "#E53935",
+  emergencyText: "#FFFFFF",
+  emergencyTextMuted: "#A3A3A3",
+  emergencyBorder: "#2D2D2D",
+  emergencyAccentPurple: "#A855F7",
+  emergencyAlertYellow: "#EAB308",
+  emergencySuccess: "#10B981",
 };
 
 export const FONTS = {
