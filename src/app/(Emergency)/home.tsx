@@ -27,6 +27,7 @@ export default function EmergencyHomeScreen() {
   const clinics = stores.filter((s: any) => 
     s.category === "Vet Clinic" || 
     s.category === "vet" || 
+  
     s.storeTypes?.includes("Veterinary") || 
     s.storeTypes?.includes("Emergency Care") || 
     s.isEmergencyAvailable ||
@@ -156,11 +157,10 @@ export default function EmergencyHomeScreen() {
               >
                 {/* Image background with overlay */}
                 <View style={styles.clinicTileImageContainer}>
-                  <Image
-                    source={{ uri: clinic.image || clinic.photo || "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=500" }}
-                    style={styles.clinicTileImage}
-                    resizeMode="cover"
-                  />
+                   <Image
+                            source={{ uri: clinic.banner || clinic.bannerImage || clinic.images?.[0] }}
+                            style={styles.clinicTileImage}
+                          />
                   <View style={[styles.statusPill, { backgroundColor: isOpen ? "rgba(16, 185, 129, 0.9)" : "rgba(239, 68, 68, 0.9)" }]}>
                     <Text style={styles.statusPillText}>{isOpen ? "OPEN NOW" : "CLOSED"}</Text>
                   </View>

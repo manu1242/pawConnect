@@ -174,6 +174,8 @@ export interface Store {
   isVerified?: boolean;
 
   verifiedBadge?: boolean;
+  
+  images?:string[];
 }
 
 export interface CustomerLocation {

@@ -106,7 +106,7 @@ export default function CustomerHomeScreen() {
       </View>
 
       {/* Promo Banner / Carousel */}
-      <View style={styles.bannerContainer}>
+      {/* <View style={styles.bannerContainer}>
         <ScrollView
           horizontal
           pagingEnabled
@@ -173,7 +173,7 @@ export default function CustomerHomeScreen() {
             ))}
           </View>
         )}
-      </View>
+      </View> */}
 
       {/* Redesigned Veterinary Care & Emergency Assistance Redirection Banner */}
       <TouchableOpacity
@@ -256,6 +256,7 @@ export default function CustomerHomeScreen() {
           { id: "Vet Clinic", label: "Vet Clinic", icon: "pulse-outline", bg: "#F0F6FF", color: "#3B82F6" },
           { id: "Boarding", label: "Boarding", icon: "home-outline", bg: "#F0FDF4", color: "#16A34A" },
           { id: "Training", label: "Training", icon: "school-outline", bg: "#FAF5FF", color: "#7C3AED" },
+          { id: "Emergency", label: "Emergency", icon: "home-outline", bg: "#FFF8F6", color: "#ef0d0dff" },
         ].map((item) => (
           <TouchableOpacity
             key={item.id}

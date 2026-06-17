@@ -43,16 +43,18 @@ export const TabBar: React.FC = () => {
   const customerTabs: TabItem[] = [
     { name: "Home", route: "/(customer)/home", icon: "home" },
     { name: "Stores", route: "/(customer)/stores", icon: "search" },
+    
+    // { name: "Bookings", route: "/(customer)/bookings", icon: "calendar" },
     { name: "Emergency", route: "/(Emergency)/home", icon: "flash", special: true },
-    { name: "Bookings", route: "/(customer)/bookings", icon: "calendar" },
     { name: "Pets", route: "/(customer)/pets", icon: "paw" },
     { name: "Profile", route: "/(customer)/profile", icon: "person" },
   ];
 
   const emergencyTabs: TabItem[] = [
     { name: "Home", route: "/(Emergency)/home", icon: "home" },
-    { name: "Emergency", route: "/(Emergency)/emergency", icon: "flash", special: true },
+ 
     { name: "Appointments", route: "/(Emergency)/appointments", icon: "calendar" },
+       { name: "Emergency", route: "/(Emergency)/emergency", icon: "flash", special: true },
     { name: "My Pets", route: "/(Emergency)/pets", icon: "paw" },
     { name: "Profile", route: "/(Emergency)/profile", icon: "person" },
   ];
@@ -122,27 +124,52 @@ export const TabBar: React.FC = () => {
           const color = getTabColor(tab, active);
 
           return (
+            // <TouchableOpacity
+            //   key={tab.route}
+            //   style={styles.tabButton}
+            //   onPress={() => handlePress(tab.route)}
+            //   activeOpacity={0.7}
+            // >
+            //   <Ionicons
+            //     name={iconName}
+            //     size={22}
+            //     color={color}
+            //   />
+            //   <Text
+            //     style={[
+            //       styles.tabLabel,
+            //       { color: color },
+            //     ]}
+            //     numberOfLines={1}
+            //   >
+            //     {tab.name}
+            //   </Text>
+            // </TouchableOpacity>
             <TouchableOpacity
-              key={tab.route}
-              style={styles.tabButton}
-              onPress={() => handlePress(tab.route)}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={iconName}
-                size={22}
-                color={color}
-              />
-              <Text
-                style={[
-                  styles.tabLabel,
-                  { color: color },
-                ]}
-                numberOfLines={1}
-              >
-                {tab.name}
-              </Text>
-            </TouchableOpacity>
+  key={tab.route}
+  style={[
+    styles.tabButton,
+    tab.special && styles.emergencyButton,
+  ]}
+  onPress={() => handlePress(tab.route)}
+  activeOpacity={0.7}
+>
+  <Ionicons
+  name={iconName}
+  size={tab.special ? 28 : 22}
+  color={tab.special ? "#FFFFFF" : color}
+/>
+  <Text
+    style={[
+      styles.tabLabel,
+      { color },
+      tab.special && styles.emergencyLabel,
+    ]}
+    numberOfLines={1}
+  >
+    {tab.name}
+  </Text>
+</TouchableOpacity>
           );
         })}
       </View>
@@ -172,6 +199,37 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
   },
+  emergencyButton: {
+  width: 50,
+  height: 70,
+  borderRadius:50,
+
+  backgroundColor: COLORS.emergencyPrimaryOrange,
+  borderColor: COLORS.surface,
+
+  
+
+  justifyContent: "center",
+  alignItems: "center",
+
+  marginTop: -35,
+
+  borderWidth: 4,
+ 
+},
+
+emergencyLabel: {
+  position: "absolute",
+  bottom: -18,
+
+  width: 80,
+  textAlign: "center",
+
+  fontSize: 10,
+  fontWeight: "700",
+
+  color: COLORS.emergencyPrimaryOrange,
+},
   tabButton: {
     alignItems: "center",
     justifyContent: "center",

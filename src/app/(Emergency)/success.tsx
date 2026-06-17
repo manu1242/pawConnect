@@ -17,6 +17,7 @@ export default function EmergencySuccessScreen() {
     gpsAddress: string;
     latitude: string;
     longitude: string;
+    location:string
   }>();
 
   const queryClient = useQueryClient();
