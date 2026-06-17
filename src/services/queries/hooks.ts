@@ -216,17 +216,9 @@ export const useUpdateBookingStatusMutation = (role: "user" | "manager") => {
 };
 
 export const useBookingDetails = (bookingId: string, role: "user" | "manager") => {
-  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ["booking", bookingId],
     queryFn: async () => {
-      const cachedBookings = queryClient.getQueryData<Booking[]>(["bookings", role]);
-      if (cachedBookings) {
-        const found = cachedBookings.find(b => (b.id === bookingId || (b as any)._id === bookingId));
-        if (found) {
-          return found;
-        }
-      }
       if (role === "user") {
         const res = await bookingApi.listCustomerBookings();
         const found = res.data.bookings.find(b => (b.id === bookingId || (b as any)._id === bookingId));
