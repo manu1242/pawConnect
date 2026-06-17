@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, TextInput } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { usePets, useStores, useCreateBookingMutation } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
 
-const DOCTORS = [
+const DEFAULT_DOCTORS = [
   { id: "d1", name: "Dr. Ananya Sharma", role: "Senior Surgeon", fee: 1000, icon: "ribbon" },
   { id: "d2", name: "Dr. Kabir Malhotra", role: "General Vet Practitioner", fee: 600, icon: "medkit" },
   { id: "d3", name: "Dr. Sneha Roy", role: "Pediatric Pet Specialist", fee: 800, icon: "heart" },
+];
+
+const SYMPTOM_OPTIONS = [
+  "Vomiting / Diarrhea",
+  "Lethargy / Weakness",
+  "Loss of Appetite",
+  "Breathing Difficulty",
+  "Injury / Bleeding / Trauma",
+  "Skin / Allergy Issues",
+  "Other (Describe below)"
 ];
 
 export default function BookAppointmentScreen() {
@@ -23,7 +33,13 @@ export default function BookAppointmentScreen() {
   const [step, setStep] = useState(1);
   const [selectedPet, setSelectedPet] = useState<any>(null);
   const [selectedClinic, setSelectedClinic] = useState<any>(null);
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(DOCTORS[0]);
+  
+  // Symptoms
+  const [selectedSymptom, setSelectedSymptom] = useState("");
+  const [symptomDescription, setSymptomDescription] = useState("");
+
+  // Doctor list based on chosen clinic
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState("2026-06-17");
   const [selectedSlot, setSelectedSlot] = useState("10:00 AM");
 
@@ -33,33 +49,52 @@ export default function BookAppointmentScreen() {
     }
   }, [pets]);
 
+  // Resolve selected clinic from route
   useEffect(() => {
-    const clinics = stores.filter((s: any) => s.category === "Vet Clinic" || s.category === "vet" || true);
-    if (clinics.length > 0 && !selectedClinic) {
-      if (routeClinicId) {
-        const found = clinics.find((c: any) => (c.id || c._id) === routeClinicId);
-        setSelectedClinic(found || clinics[0]);
-      } else {
-        setSelectedClinic(clinics[0]);
-      }
+    if (stores.length > 0 && !selectedClinic) {
+      const found = stores.find((s: any) => (s.id || s._id) === routeClinicId);
+      setSelectedClinic(found || stores[0]);
     }
   }, [stores, routeClinicId]);
 
+  // Get doctors list of the chosen clinic (fallback to defaults if empty)
+  const getClinicDoctors = () => {
+    if (selectedClinic?.doctors && selectedClinic.doctors.length > 0) {
+      return selectedClinic.doctors.map((d: any, idx: number) => ({
+        id: d.id || `clinic-doc-${idx}`,
+        name: d.name,
+        role: d.specialty || "Veterinary Doctor",
+        fee: 750, // Standard consulting fee
+        icon: "medkit"
+      }));
+    }
+    return DEFAULT_DOCTORS;
+  };
+
+  const doctorsList = getClinicDoctors();
+
+  // Set default doctor once loaded
+  useEffect(() => {
+    if (doctorsList.length > 0 && !selectedDoctor) {
+      setSelectedDoctor(doctorsList[0]);
+    }
+  }, [selectedClinic]);
+
   const handleNext = () => {
     if (step === 1 && !selectedPet) {
-      Alert.alert("Required", "Please select a pet for this booking.");
+      Alert.alert("Required", "Please select a pet patient.");
       return;
     }
-    if (step === 2 && !selectedClinic) {
-      Alert.alert("Required", "Please select a veterinary clinic.");
+    if (step === 2 && !selectedSymptom) {
+      Alert.alert("Required", "Please select or describe a symptom.");
       return;
     }
     if (step === 3 && !selectedDoctor) {
-      Alert.alert("Required", "Please choose a doctor.");
+      Alert.alert("Required", "Please choose a veterinary doctor.");
       return;
     }
     if (step === 4 && !selectedSlot) {
-      Alert.alert("Required", "Please choose a time slot.");
+      Alert.alert("Required", "Please select a time slot.");
       return;
     }
 
@@ -82,7 +117,7 @@ export default function BookAppointmentScreen() {
       image: selectedPet.photo || selectedPet.profileImage || "",
       petType: selectedPet.petType || "Dog",
       vaccinated: true,
-      medicalConditions: `Consultation with ${selectedDoctor.name}`,
+      medicalConditions: `Symptoms: ${selectedSymptom}. Description: ${symptomDescription || "None"}`,
     };
 
     const bookingPayload = {
@@ -96,9 +131,9 @@ export default function BookAppointmentScreen() {
       paymentMethod: "UPI",
       serviceMode: "store" as any,
       customerLocation: {
-        address: "Hospital Outpatient Visit",
-        latitude: 12.9716,
-        longitude: 77.5946,
+        address: selectedClinic.address || "Hospital Outpatient Visit",
+        latitude: selectedClinic.latitude || 12.9716,
+        longitude: selectedClinic.longitude || 77.5946,
       } as any,
     };
 
@@ -106,7 +141,7 @@ export default function BookAppointmentScreen() {
       onSuccess: (res: any) => {
         Alert.alert(
           "Appointment Scheduled",
-          "Your veterinary appointment is successfully scheduled. You can track it under Visits.",
+          "Your veterinary appointment has been successfully booked.",
           [
             {
               text: "Go to Visits",
@@ -123,8 +158,6 @@ export default function BookAppointmentScreen() {
     });
   };
 
-  const clinics = stores.filter((s: any) => s.category === "Vet Clinic" || s.category === "vet" || true);
-
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -132,13 +165,13 @@ export default function BookAppointmentScreen() {
         <TouchableOpacity onPress={() => (step > 1 ? setStep(step - 1) : router.back())}>
           <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Book Vet Visit</Text>
+        <Text style={styles.headerTitle}>Book Appointment</Text>
         <Text style={styles.stepIndicator}>Step {step} of 5</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
-        {/* STEP 1: SELECT PET */}
+        {/* STEP 1: SELECT PET PATIENT */}
         {step === 1 && (
           <View>
             <Text style={styles.stepTitle}>Select Pet Patient</Text>
@@ -175,40 +208,49 @@ export default function BookAppointmentScreen() {
           </View>
         )}
 
-        {/* STEP 2: SELECT CLINIC */}
+        {/* STEP 2: SELECT PET SYMPTOMS */}
         {step === 2 && (
           <View>
-            <Text style={styles.stepTitle}>Select Veterinary Clinic</Text>
-            {loadingStores ? (
-              <ActivityIndicator size="small" color={COLORS.emergencyPrimaryOrange} />
-            ) : (
-              clinics.map((clinic: any) => {
-                const isSelected = selectedClinic && (selectedClinic.id || selectedClinic._id) === (clinic.id || clinic._id);
+            <Text style={styles.stepTitle}>Select Pet Symptoms</Text>
+            
+            <View style={styles.symptomsContainer}>
+              {SYMPTOM_OPTIONS.map((opt) => {
+                const isSelected = selectedSymptom === opt;
                 return (
                   <TouchableOpacity
-                    key={clinic.id || clinic._id}
-                    style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
-                    onPress={() => setSelectedClinic(clinic)}
-                    activeOpacity={0.8}
+                    key={opt}
+                    style={[styles.symptomPill, isSelected && styles.symptomPillActive]}
+                    onPress={() => setSelectedSymptom(opt)}
+                    activeOpacity={0.85}
                   >
-                    <Ionicons name="business" size={20} color={isSelected ? COLORS.emergencyPrimaryOrange : COLORS.emergencyTextMuted} />
-                    <View style={{ marginLeft: 14, flex: 1 }}>
-                      <Text style={styles.cardTitle}>{clinic.name}</Text>
-                      <Text style={styles.cardSub}>📍 {clinic.address || clinic.city || "Nearby"}</Text>
-                    </View>
-                    {isSelected && <Ionicons name="checkmark-circle" size={20} color={COLORS.emergencyPrimaryOrange} />}
+                    <Text style={[styles.symptomPillText, isSelected && styles.symptomPillTextActive]}>
+                      {opt}
+                    </Text>
                   </TouchableOpacity>
                 );
-              })
-            )}
+              })}
+            </View>
+
+            <Text style={[styles.stepTitle, { marginTop: 24 }]}>Describe Symptoms & Problems</Text>
+            <View style={styles.textAreaContainer}>
+              <TextInput
+                style={styles.textArea}
+                multiline
+                numberOfLines={4}
+                placeholder="Enter details of pet symptoms, problems, duration, or any other critical information..."
+                placeholderTextColor={COLORS.emergencyTextMuted}
+                value={symptomDescription}
+                onChangeText={setSymptomDescription}
+              />
+            </View>
           </View>
         )}
 
         {/* STEP 3: SELECT DOCTOR */}
         {step === 3 && (
           <View>
-            <Text style={styles.stepTitle}>Select Veterinarian</Text>
-            {DOCTORS.map((doc) => {
+            <Text style={styles.stepTitle}>Select Doctor of {selectedClinic?.name || "Clinic"}</Text>
+            {doctorsList.map((doc) => {
               const isSelected = selectedDoctor && selectedDoctor.id === doc.id;
               return (
                 <TouchableOpacity
@@ -220,7 +262,7 @@ export default function BookAppointmentScreen() {
                   <Ionicons name={doc.icon as any} size={20} color={isSelected ? COLORS.emergencyPrimaryOrange : COLORS.emergencyTextMuted} />
                   <View style={{ marginLeft: 14, flex: 1 }}>
                     <Text style={styles.cardTitle}>{doc.name}</Text>
-                    <Text style={styles.cardSub}>{doc.role} • Consultation Fee: ₹{doc.fee}</Text>
+                    <Text style={styles.cardSub}>{doc.role} • Fee: ₹{doc.fee}</Text>
                   </View>
                   {isSelected && <Ionicons name="checkmark-circle" size={20} color={COLORS.emergencyPrimaryOrange} />}
                 </TouchableOpacity>
@@ -272,7 +314,7 @@ export default function BookAppointmentScreen() {
         {/* STEP 5: REVIEW CONFIRMATION */}
         {step === 5 && (
           <View>
-            <Text style={styles.stepTitle}>Review Appointment Details</Text>
+            <Text style={styles.stepTitle}>Schedule Visit Details</Text>
             
             <View style={styles.summaryCard}>
               <View style={styles.summaryRow}>
@@ -284,7 +326,7 @@ export default function BookAppointmentScreen() {
                 <Text style={styles.summaryVal} numberOfLines={1}>{selectedClinic?.name}</Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Doctor Assigned:</Text>
+                <Text style={styles.summaryLabel}>Selected Doctor:</Text>
                 <Text style={styles.summaryVal}>{selectedDoctor?.name}</Text>
               </View>
               <View style={styles.summaryRow}>
@@ -294,6 +336,12 @@ export default function BookAppointmentScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Time Slot:</Text>
                 <Text style={styles.summaryVal}>{selectedSlot}</Text>
+              </View>
+              <View style={styles.summaryRowCol}>
+                <Text style={styles.summaryLabel}>Pet Symptoms & Problems:</Text>
+                <Text style={styles.summaryValDesc}>
+                  [{selectedSymptom}] {symptomDescription || "No additional description entered."}
+                </Text>
               </View>
               
               <View style={styles.divider} />
@@ -406,6 +454,47 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 2,
   },
+  symptomsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  symptomPill: {
+    backgroundColor: COLORS.emergencySurface,
+    borderWidth: 1.5,
+    borderColor: COLORS.emergencyBorder,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 4,
+  },
+  symptomPillActive: {
+    borderColor: COLORS.emergencyPrimaryOrange,
+    backgroundColor: "rgba(255, 107, 53, 0.1)",
+  },
+  symptomPillText: {
+    color: COLORS.emergencyTextMuted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  symptomPillTextActive: {
+    color: COLORS.emergencyPrimaryOrange,
+    fontWeight: "800",
+  },
+  textAreaContainer: {
+    backgroundColor: COLORS.emergencySurface,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: COLORS.emergencyBorder,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  textArea: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    textAlignVertical: "top",
+    minHeight: 80,
+  },
   datesGrid: {
     flexDirection: "row",
     gap: 10,
@@ -467,6 +556,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  summaryRowCol: {
+    flexDirection: "column",
+    gap: 4,
+    marginTop: 4,
+  },
   summaryLabel: {
     color: COLORS.emergencyTextMuted,
     fontSize: 12,
@@ -477,6 +571,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "800",
     maxWidth: "60%",
+  },
+  summaryValDesc: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    lineHeight: 18,
   },
   divider: {
     height: 1,
