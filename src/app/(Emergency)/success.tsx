@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, SafeAreaView, Linking, Alert } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useStoreDetails } from "../../services/queries/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { useStoreDetails, useBookingDetails } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -18,16 +19,33 @@ export default function EmergencySuccessScreen() {
     longitude: string;
   }>();
 
+  const queryClient = useQueryClient();
   const { data: store, isLoading: loadingStore } = useStoreDetails(params.storeId || "");
-  const [timeLeft, setTimeLeft] = useState(900); // 15:00 minutes countdown
+  const { data: booking } = useBookingDetails(params.bookingId || "", "user");
 
-  // Countdown timer for confirmation
+  const [timeLeft, setTimeLeft] = useState(900); // 15:00 minutes countdown
+  const [mockAccepted, setMockAccepted] = useState(false);
+
+  // Poll booking details every 5 seconds to catch live status updates from backend
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["booking", params.bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["bookings", "user"] });
+    }, 5000);
+    return () => clearInterval(pollInterval);
+  }, [params.bookingId]);
+
+  // Countdown timer for pending status
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Determine if booking is accepted
+  const dbAccepted = booking?.status === "accepted" || booking?.status === "approved" || booking?.status === "completed";
+  const activeAccepted = dbAccepted || mockAccepted;
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -61,6 +79,40 @@ export default function EmergencySuccessScreen() {
     });
   };
 
+  // Haversine Distance Calculation (User <-> Clinic)
+  const getDistanceText = () => {
+    const lat1 = parseFloat(params.latitude || "");
+    const lon1 = parseFloat(params.longitude || "");
+    
+    // Clinic Coordinates from API
+    const lat2 = store?.latitude || (store?.location?.coordinates ? store.location.coordinates[1] : null);
+    const lon2 = store?.longitude || (store?.location?.coordinates ? store.location.coordinates[0] : null);
+
+    if (!isNaN(lat1) && !isNaN(lon1) && lat2 && lon2) {
+      const R = 6371; // km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const d = R * c;
+      return `${d.toFixed(2)} km`;
+    }
+    return "2.5 km"; // fallback
+  };
+
+  const distText = getDistanceText();
+
+  const handleNavigate = () => {
+    const address = store?.address ? (typeof store.address === "string" ? store.address : `${store.address.street || ""}, ${store.address.city || ""}`) : "Vet Clinic";
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert("Directions", `Opening maps for: ${address}`);
+    });
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -74,35 +126,99 @@ export default function EmergencySuccessScreen() {
           <Text style={styles.successSubtitle}>Ref ID: {params.bookingId || "#PWC-EM-304"}</Text>
         </View>
 
-        {/* 15 Minute Guarantee Tracker */}
-        <View style={styles.guaranteeCard}>
-          <Text style={styles.guaranteeTitle}>GUARANTEED CLINIC RESPONSE IN</Text>
-          <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-          <Text style={styles.guaranteeSub}>
-            Your emergency request has been sent to the clinic. The triage team is preparing for your arrival.
-          </Text>
-          {/* Live Progress Bar */}
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFilled, { width: `${(timeLeft / 900) * 100}%` }]} />
+        {/* Developer Simulation Toggle */}
+        {!activeAccepted && (
+          <TouchableOpacity 
+            style={styles.simulateBtn} 
+            onPress={() => setMockAccepted(true)}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="construct-outline" size={14} color={COLORS.emergencyPrimaryOrange} />
+            <Text style={styles.simulateBtnText}>Simulate Clinic Acceptance</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* 15 Minute Guarantee Tracker / Accepted Confirmation Map */}
+        {activeAccepted ? (
+          <View style={styles.acceptedCard}>
+            <View style={styles.acceptedHeader}>
+              <View style={styles.pulseGreenDot} />
+              <Text style={styles.acceptedTitle}>Request Accepted!</Text>
+            </View>
+            <Text style={styles.acceptedSub}>
+              Hansika Vet Clinic has accepted your emergency booking. Triage preparation has commenced.
+            </Text>
+
+            {/* 🗺️ Route Map Visualizer */}
+            <View style={styles.mapVisualizer}>
+              <View style={styles.mapHeader}>
+                <Ionicons name="map-outline" size={16} color={COLORS.emergencyPrimaryOrange} />
+                <Text style={styles.mapHeaderText}>Route Active • {distText} distance</Text>
+              </View>
+
+              <View style={styles.simulatedMap}>
+                {/* User node */}
+                <View style={styles.mapNode}>
+                  <View style={[styles.nodeCircle, { backgroundColor: COLORS.emergencySuccess }]} />
+                  <Text style={styles.nodeLabel}>Your Location</Text>
+                </View>
+
+                {/* Dotted path */}
+                <View style={styles.dottedPath}>
+                  <Ionicons name="ellipsis-horizontal" size={24} color={COLORS.emergencyPrimaryOrange} />
+                </View>
+
+                {/* Clinic node */}
+                <View style={styles.mapNode}>
+                  <View style={[styles.nodeCircle, { backgroundColor: COLORS.emergencyPrimaryOrange }]}>
+                    <Ionicons name="medical" size={14} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.nodeLabel} numberOfLines={1}>{store?.name || "Clinic"}</Text>
+                </View>
+              </View>
+
+              <TouchableOpacity style={styles.mapNavBtn} onPress={handleNavigate}>
+                <Text style={styles.mapNavBtnText}>Open Route in Google Maps</Text>
+                <Ionicons name="navigate-circle" size={18} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.guaranteeCard}>
+            <Text style={styles.guaranteeTitle}>GUARANTEED CLINIC RESPONSE IN</Text>
+            <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+            <Text style={styles.guaranteeSub}>
+              Your emergency request has been sent to the clinic. The triage team is preparing for your arrival.
+            </Text>
+            {/* Live Progress Bar */}
+            <View style={styles.progressBarBg}>
+              <View style={[styles.progressBarFilled, { width: `${(timeLeft / 900) * 100}%` }]} />
+            </View>
+          </View>
+        )}
 
         {/* Post-Treatment Payment Info Section */}
         <View style={styles.paymentInfoCard}>
           <View style={styles.paymentInfoHeader}>
-            <Ionicons name="card" size={22} color={COLORS.emergencyPrimaryOrange} />
-            <Text style={styles.paymentInfoTitle}>Post-Treatment Payment</Text>
+            <Ionicons name="card" size={22} color={activeAccepted ? COLORS.emergencySuccess : COLORS.emergencyPrimaryOrange} />
+            <Text style={styles.paymentInfoTitle}>
+              {activeAccepted ? "Complete Consultation Payment" : "Post-Treatment Payment"}
+            </Text>
           </View>
           <Text style={styles.paymentInfoBody}>
-            No upfront payment is required so you can focus on your dog's immediate care. You can pay the consultation fee of ₹1,500 after the checkup is complete.
+            {activeAccepted
+              ? "Your emergency request has been accepted. Please complete the consultation fee payment to finalize transaction details."
+              : "No upfront payment is required so you can focus on your dog's immediate care. You can pay the consultation fee of ₹1,500 after the checkup is complete."}
           </Text>
           <TouchableOpacity 
-            style={styles.payNowBtn}
+            style={[styles.payNowBtn, activeAccepted && styles.payNowBtnHighlighted]}
             onPress={handlePayNow}
             activeOpacity={0.8}
           >
-            <Text style={styles.payNowBtnText}>Pay Consultation Fee Now (Optional)</Text>
-            <Ionicons name="arrow-forward" size={14} color="#FFFFFF" />
+            <Text style={[styles.payNowBtnText, activeAccepted && styles.payNowBtnTextHighlighted]}>
+              {activeAccepted ? "Pay Consultation Fee Now" : "Pay Consultation Fee Now (Optional)"}
+            </Text>
+            <Ionicons name="arrow-forward" size={14} color={activeAccepted ? "#FFFFFF" : COLORS.emergencyPrimaryOrange} />
           </TouchableOpacity>
         </View>
 
@@ -354,5 +470,126 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "800",
+  },
+  simulateBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 107, 53, 0.08)",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 53, 0.25)",
+    marginBottom: 16,
+    gap: 6,
+  },
+  simulateBtnText: {
+    color: COLORS.emergencyPrimaryOrange,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  acceptedCard: {
+    backgroundColor: COLORS.emergencySurface,
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.emergencySuccess,
+    width: "100%",
+    marginBottom: 20,
+  },
+  acceptedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  pulseGreenDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: COLORS.emergencySuccess,
+  },
+  acceptedTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  acceptedSub: {
+    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  mapVisualizer: {
+    backgroundColor: COLORS.emergencyBg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: COLORS.emergencyBorder,
+    padding: 12,
+    marginTop: 8,
+  },
+  mapHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
+  mapHeaderText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  simulatedMap: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginVertical: 14,
+  },
+  mapNode: {
+    alignItems: "center",
+    width: "40%",
+  },
+  nodeCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 6,
+    borderWidth: 2,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+  },
+  nodeLabel: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  dottedPath: {
+    flex: 1,
+    alignItems: "center",
+  },
+  mapNavBtn: {
+    backgroundColor: COLORS.emergencyPrimaryOrange,
+    borderRadius: 10,
+    height: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 16,
+    gap: 6,
+  },
+  mapNavBtnText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  payNowBtnHighlighted: {
+    backgroundColor: COLORS.emergencySuccess,
+    borderColor: COLORS.emergencySuccess,
+  },
+  payNowBtnTextHighlighted: {
+    color: "#FFFFFF",
   },
 });
