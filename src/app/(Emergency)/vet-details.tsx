@@ -1,38 +1,49 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Linking, Alert, ActivityIndicator } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useStores } from "../../services/queries/hooks";
+import { useStoreDetails } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
 
 export default function VetDetailsScreen() {
   const { id } = useLocalSearchParams();
-  const { data: stores = [] } = useStores();
+  const { data: clinic, isLoading, error } = useStoreDetails(id as string);
 
-  // Find the current store details
-  const foundClinic = stores.find((s: any) => (s.id || s._id) === id) || stores[0];
-  const clinic = (foundClinic ? { ...foundClinic } : {
-    name: "Apex Veterinary Hospital & Emergency Care",
-    address: "742 Evergreen Terrace, Sector 4, Bangalore",
-    rating: 4.9,
-    phone: "+91 98765 43210",
-    image: "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=500",
-    services: [
-      { id: "s1", name: "Emergency Surgery", price: 2500 },
-      { id: "s2", name: "General Checkup", price: 600 },
-      { id: "s3", name: "Rabies Vaccination", price: 400 },
-      { id: "s4", name: "Pet Dental Cleaning", price: 1200 },
-    ],
-  }) as any;
+  if (isLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={COLORS.emergencyPrimaryOrange} />
+        <Text style={styles.loadingText}>Loading clinic details...</Text>
+      </View>
+    );
+  }
 
+  if (error || !clinic) {
+    return (
+      <View style={styles.center}>
+        <Ionicons name="alert-circle" size={48} color={COLORS.emergencyRed} />
+        <Text style={styles.errorText}>Failed to load clinic details</Text>
+        <TouchableOpacity style={styles.backBtnText} onPress={() => router.back()}>
+          <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Build clean address string from object or string structure
   const clinicAddressStr = typeof clinic.address === "string" 
     ? clinic.address 
-    : (clinic.address?.street || "Sector 4, Bangalore");
+    : (clinic.address
+       ? `${clinic.address.street || ""}, ${clinic.address.city || ""}, ${clinic.address.pincode || ""}`
+       : (clinic.addressDetails?.city || "Address not available"));
 
   const handleCallClinic = () => {
-    const phone = clinic.phone || "+91 98765 43210";
-    Linking.openURL(`tel:${phone}`).catch(() => {
-      Alert.alert("Call Clinic", `Calling ${clinic.name} at ${phone}`);
+    if (!clinic.phone) {
+      showToast("Phone hotline not registered for this clinic", "error");
+      return;
+    }
+    Linking.openURL(`tel:${clinic.phone}`).catch(() => {
+      Alert.alert("Call Clinic", `Calling ${clinic.name} at ${clinic.phone}`);
     });
   };
 
@@ -51,22 +62,39 @@ export default function VetDetailsScreen() {
     });
   };
 
+  // Dynamically calculate timing
+  const getClinicTimings = () => {
+    if (clinic.businessHours && clinic.businessHours.length > 0) {
+      const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+      const todayHours = clinic.businessHours.find((bh: any) => bh.day === today);
+      if (todayHours) {
+        return todayHours.isOpen 
+          ? `${todayHours.openTime} - ${todayHours.closeTime}`
+          : "Closed Today";
+      }
+      return `${clinic.businessHours[0].openTime} - ${clinic.businessHours[0].closeTime}`;
+    }
+    return clinic.is24x7 ? "24/7 Open" : "09:00 AM - 09:00 PM";
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-      {/* 🖼️ Large Clinic Banner */}
+      {/* 🖼️ Dynamic Clinic Banner */}
       <View style={styles.bannerContainer}>
         <Image
-          source={{ uri: clinic.image || clinic.photo || "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=500" }}
+          source={{ uri: clinic.bannerImage || clinic.banner || clinic.logo || "https://images.unsplash.com/photo-1584132967334-10e028bd69f7?w=500" }}
           style={styles.bannerImage}
         />
         <View style={styles.headerOverlay}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
-          <View style={styles.emergencyAvailability}>
-            <View style={styles.pulseDot} />
-            <Text style={styles.emergencyAvailabilityText}>24/7 EMERGENCY LIVE</Text>
-          </View>
+          {clinic.is24x7 && (
+            <View style={styles.emergencyAvailability}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.emergencyAvailabilityText}>24/7 EMERGENCY LIVE</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -75,15 +103,15 @@ export default function VetDetailsScreen() {
         <Text style={styles.clinicName}>{clinic.name}</Text>
         <Text style={styles.clinicAddress}>📍 {clinicAddressStr}</Text>
 
-        {/* Rating and Timings info */}
+        {/* Rating and Timings info from API */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Ionicons name="star" size={16} color="#FBBF24" style={{ marginRight: 6 }} />
-            <Text style={styles.statText}>{clinic.rating || "4.8"} / 5.0</Text>
+            <Text style={styles.statText}>{clinic.rating ? `${clinic.rating} / 5.0` : "4.8 / 5.0"}</Text>
           </View>
           <View style={styles.statBox}>
             <Ionicons name="time" size={16} color={COLORS.emergencyPrimaryOrange} style={{ marginRight: 6 }} />
-            <Text style={styles.statText}>09:00 AM - 09:00 PM</Text>
+            <Text style={styles.statText}>{getClinicTimings()}</Text>
           </View>
         </View>
 
@@ -99,7 +127,7 @@ export default function VetDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Doctor Information */}
+        {/* Doctor Information - API based */}
         <Text style={styles.sectionTitle}>Senior Veterinary Doctors</Text>
         {clinic.doctors && clinic.doctors.length > 0 ? (
           clinic.doctors.map((doc: any, idx: number) => (
@@ -115,31 +143,22 @@ export default function VetDetailsScreen() {
             </View>
           ))
         ) : (
-          <View style={styles.doctorCard}>
-            <View style={styles.doctorAvatar}>
-              <Ionicons name="person" size={28} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={styles.doctorName}>Dr. Ananya Sharma, DVM</Text>
-              <Text style={styles.doctorSpecialty}>Emergency Surgery & Trauma Specialist</Text>
-              <Text style={styles.doctorExp}>12+ Years Experience</Text>
-            </View>
-          </View>
+          <Text style={styles.noDataText}>No doctor profiles added to this clinic registry.</Text>
         )}
 
-        {/* Clinic Gallery */}
-        <Text style={styles.sectionTitle}>Clinic Facilities Gallery</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryScroll}>
-          {[
-            "https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=400",
-            "https://images.unsplash.com/photo-1576091160550-2173dba999ef?w=400",
-            "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?w=400",
-          ].map((url, idx) => (
-            <Image key={`gallery-${idx}`} source={{ uri: url }} style={styles.galleryPhoto} />
-          ))}
-        </ScrollView>
+        {/* Clinic Gallery - API based */}
+        {clinic.gallery && clinic.gallery.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Clinic Facilities Gallery</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryScroll}>
+              {clinic.gallery.map((url: string, idx: number) => (
+                <Image key={`gallery-${idx}`} source={{ uri: url }} style={styles.galleryPhoto} />
+              ))}
+            </ScrollView>
+          </>
+        )}
 
-        {/* Services List */}
+        {/* Services List - API based */}
         <Text style={styles.sectionTitle}>Services Offered</Text>
         <View style={styles.servicesList}>
           {clinic.services && clinic.services.length > 0 ? (
@@ -151,11 +170,7 @@ export default function VetDetailsScreen() {
               </View>
             ))
           ) : (
-            <View style={styles.serviceItem}>
-              <Ionicons name="medical" size={16} color={COLORS.emergencyPrimaryOrange} style={{ marginRight: 10 }} />
-              <Text style={styles.serviceName}>General Consultation</Text>
-              <Text style={styles.servicePrice}>₹600</Text>
-            </View>
+            <Text style={[styles.noDataText, { paddingVertical: 14 }]}>No services registered for this clinic.</Text>
           )}
         </View>
 
@@ -374,5 +389,38 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "800",
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.emergencyBg,
+    padding: 20,
+  },
+  loadingText: {
+    color: "#FFFFFF",
+    marginTop: 12,
+    fontSize: 14,
+  },
+  errorText: {
+    color: COLORS.emergencyRed,
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  backBtnText: {
+    marginTop: 16,
+    padding: 10,
+    backgroundColor: COLORS.emergencySurface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.emergencyBorder,
+  },
+  noDataText: {
+    color: COLORS.emergencyTextMuted,
+    fontSize: 12,
+    fontStyle: "italic",
+    textAlign: "center",
+    marginVertical: 8,
   },
 });
