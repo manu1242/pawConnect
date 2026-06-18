@@ -57,7 +57,7 @@ export default function VetDetailsScreen() {
 
   const handleBookAppointment = () => {
     router.push({
-      pathname: "/(Emergency)/book-appointment" as any,
+      pathname: "/Emergency/book-appointment" as any,
       params: { clinicId: clinic.id || clinic._id }
     });
   };

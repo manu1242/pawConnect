@@ -24,11 +24,15 @@ export const TabBar: React.FC = () => {
     pathname === "/" ||
     pathname === "/index";
 
-  const inEmergency = segments[0] === "(Emergency)";
+  const inEmergency = segments[0] === "Emergency";
 
   if (!user || isAuthRoute) {
     return null;
   }
+  const handlePres = (route: string) => {
+  console.log("Navigating to:", route);
+  router.push(route as any);
+};
 
   const role = user.role;
 
@@ -45,19 +49,18 @@ export const TabBar: React.FC = () => {
     { name: "Stores", route: "/(customer)/stores", icon: "search" },
     
     // { name: "Bookings", route: "/(customer)/bookings", icon: "calendar" },
-    { name: "Emergency", route: "/(Emergency)/home", icon: "flash", special: true },
+    { name: "Emergency", route: "/Emergency/home", icon: "flash", special: true },
     { name: "Pets", route: "/(customer)/pets", icon: "paw" },
     { name: "Profile", route: "/(customer)/profile", icon: "person" },
   ];
 
   const emergencyTabs: TabItem[] = [
-    { name: "Home", route: "/(Emergency)/home", icon: "home" },
- 
-    { name: "Appointments", route: "/(Emergency)/appointments", icon: "calendar" },
-       { name: "Emergency", route: "/(Emergency)/emergency", icon: "flash", special: true },
-    { name: "My Pets", route: "/(Emergency)/pets", icon: "paw" },
-    { name: "Profile", route: "/(Emergency)/profile", icon: "person" },
-  ];
+  { name: "Home", route: "/Emergency/home", icon: "home" },
+  { name: "Appointments", route: "/Emergency/appointments", icon: "calendar" },
+  { name: "Emergency", route: "/Emergency/emergency", icon: "flash", special: true },
+  { name: "My Pets", route: "/Emergency/pets", icon: "paw" },
+  { name: "Profile", route: "/Emergency/profile", icon: "person" },
+];
 
   const ownerTabs: TabItem[] = [
     { name: "Dashboard", route: "/(owner)/dashboard", icon: "grid" },
@@ -81,10 +84,10 @@ export const TabBar: React.FC = () => {
       return isHome || isStoreDetail;
     }
 
-    if (route.startsWith("/(Emergency)/")) {
+    if (route.startsWith("/Emergency/")) {
       const targetSegment = route.split("/")[2] || "home";
       const currentSegment = segments[1] || "home";
-      return segments[0] === "(Emergency)" && currentSegment === targetSegment;
+      return segments[0] === "Emergency" && currentSegment === targetSegment;
     }
 
     return routeParts.every((part, idx) => segments[idx] === part);
@@ -151,7 +154,7 @@ export const TabBar: React.FC = () => {
     styles.tabButton,
     tab.special && styles.emergencyButton,
   ]}
-  onPress={() => handlePress(tab.route)}
+  onPress={() => handlePres(tab.route)}
   activeOpacity={0.7}
 >
   <Ionicons
@@ -214,7 +217,7 @@ const styles = StyleSheet.create({
 
   marginTop: -35,
 
-  borderWidth: 4,
+  borderWidth: 1,
  
 },
 

@@ -84,7 +84,7 @@ function AppNavigationShell() {
   const paddingBottom = showTabs ? TAB_BAR_HEIGHT + insets.bottom : 0;
   const paddingTop = insets.top;
 
-  const inEmergency = segments[0] === "(Emergency)";
+  const inEmergency = segments[0] === "Emergency";
 
   return (
     <View style={[styles.container, { backgroundColor: inEmergency ? "#0D0D0D" : COLORS.background }]}>

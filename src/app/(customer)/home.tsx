@@ -179,7 +179,7 @@ export default function CustomerHomeScreen() {
       <TouchableOpacity
         style={styles.emergencyBanner}
         activeOpacity={0.95}
-        onPress={() => router.replace("/(Emergency)/home" as any)}
+        onPress={() => router.replace("/Emergency/home" as any)}
       >
         <View style={styles.emergencyBannerHeader}>
           <View style={styles.emergencyBadge}>

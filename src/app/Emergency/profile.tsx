@@ -67,7 +67,7 @@ export default function RedesignedProfileScreen() {
 
       {/* 📊 Live Stat Counters */}
       <View style={styles.statsRow}>
-        <TouchableOpacity style={styles.statCard} onPress={() => router.push("/(Emergency)/pets" as any)}>
+        <TouchableOpacity style={styles.statCard} onPress={() => router.push("/Emergency/pets" as any)}>
           <Text style={styles.statVal}>{pets.length > 0 ? pets.length : 2}</Text>
           <Text style={styles.statLabel}>Registered Pets</Text>
         </TouchableOpacity>
@@ -81,7 +81,7 @@ export default function RedesignedProfileScreen() {
       {/* Profile Actions List */}
       <View style={styles.menuCard}>
         {/* My Pets */}
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/(Emergency)/pets" as any)}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push("/Emergency/pets" as any)}>
           <View style={styles.menuItemLeft}>
             <View style={[styles.menuIconBg, { backgroundColor: "rgba(255, 107, 53, 0.1)" }]}>
               <Ionicons name="paw-outline" size={20} color={COLORS.emergencyPrimaryOrange} />

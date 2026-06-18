@@ -56,7 +56,7 @@ export default function EmergencyHomeScreen() {
             activeOpacity={0.8}
           >
             <Ionicons name="close-circle-outline" size={16} color={COLORS.emergencyPrimaryOrange} />
-            <Text style={styles.marketplaceToggleText}>Exit Emergency</Text>
+            <Text style={styles.marketplaceToggleText}>Exit</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.bellBtn} onPress={() => router.push("/(customer)/notifications" as any)}>
@@ -88,7 +88,7 @@ export default function EmergencyHomeScreen() {
       <TouchableOpacity 
         style={styles.emergencyCard} 
         activeOpacity={0.9}
-        onPress={() => router.push("/(Emergency)/emergency" as any)}
+        onPress={() => router.push("/Emergency/emergency/" as any)}
       >
         <View style={styles.emergencyCardHeader}>
           <View style={styles.emergencyPulseContainer}>
@@ -110,12 +110,12 @@ export default function EmergencyHomeScreen() {
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.gridContainer}>
         {[
-          { name: "🏥 Find Vet", route: "/(Emergency)/emergency" },
-          { name: "📅 Book Appointment", route: "/(Emergency)/book-appointment" },
-          { name: "💉 Vaccinations", route: "/(Emergency)/pets" },
-          { name: "📋 Health Records", route: "/(Emergency)/profile" },
-          { name: "📍 Nearby Clinics", route: "/(Emergency)/emergency" },
-          { name: "☎ Emergency Call", route: "/(Emergency)/emergency", highlight: true },
+          { name: "🏥 Find Vet", route: "/Emergency/emergency" },
+          { name: "📅 Book Appointment", route: "/Emergency/book-appointment" },
+          { name: "💉 Vaccinations", route: "/Emergency/pets" },
+          { name: "📋 Health Records", route: "/Emergency/profile" },
+          { name: "📍 Nearby Clinics", route: "/Emergency/emergency" },
+          { name: "☎ Emergency Call", route: "/Emergency/emergency", highlight: true },
         ].map((item, idx) => (
           <TouchableOpacity
             key={idx}
@@ -131,7 +131,7 @@ export default function EmergencyHomeScreen() {
       {/* Featured Section: Nearby Veterinary Clinics */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Nearby Veterinary Clinics</Text>
-        <TouchableOpacity onPress={() => router.push("/(Emergency)/emergency" as any)}>
+        <TouchableOpacity onPress={() => router.push("/Emergency/emergency/" as any)}>
           <Text style={styles.seeAllText}>See all</Text>
         </TouchableOpacity>
       </View>
@@ -152,7 +152,7 @@ export default function EmergencyHomeScreen() {
               <TouchableOpacity
                 key={`clinic-${clinicId}`}
                 style={styles.clinicTile}
-                onPress={() => router.push({ pathname: "/(Emergency)/vet-details", params: { id: clinicId } } as any)}
+                onPress={() => router.push({ pathname: "/Emergency/vet-details", params: { id: clinicId } } as any)}
                 activeOpacity={0.9}
               >
                 {/* Image background with overlay */}
@@ -211,7 +211,7 @@ export default function EmergencyHomeScreen() {
           <Text style={styles.emptyCardText}>No upcoming veterinary visits</Text>
           <TouchableOpacity 
             style={styles.emptyCardBtn}
-            onPress={() => router.push("/(Emergency)/book-appointment" as any)}
+            onPress={() => router.push("/Emergency/book-appointment" as any)}
           >
             <Text style={styles.emptyCardBtnText}>Book Vet Visit</Text>
           </TouchableOpacity>
@@ -235,7 +235,7 @@ export default function EmergencyHomeScreen() {
                 </View>
                 <TouchableOpacity 
                   style={styles.reminderShortcut}
-                  onPress={() => router.push("/(Emergency)/pets" as any)}
+                  onPress={() => router.push("/Emergency/pets" as any)}
                 >
                   <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -251,7 +251,7 @@ export default function EmergencyHomeScreen() {
             </View>
             <TouchableOpacity 
               style={styles.reminderShortcut}
-              onPress={() => router.push("/(Emergency)/pets" as any)}
+              onPress={() => router.push("/Emergency/pets" as any)}
             >
               <Ionicons name="add" size={16} color="#FFFFFF" />
             </TouchableOpacity>

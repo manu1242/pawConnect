@@ -32,7 +32,7 @@ export default function EmergencyScreen() {
 
   const handleSelectSymptom = (symptomName: string) => {
     router.push({
-      pathname: "/(Emergency)/book-emergency" as any,
+      pathname: "/Emergency/book-emergency" as any,
       params: { symptom: symptomName }
     });
   };
@@ -132,7 +132,7 @@ export default function EmergencyScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.bookBtn}
-                    onPress={() => router.push({ pathname: "/(Emergency)/book-emergency", params: { clinicId } } as any)}
+                    onPress={() => router.push({ pathname: "/Emergency/book-emergency", params: { clinicId } } as any)}
                     activeOpacity={0.8}
                   >
                     <Text style={styles.bookBtnText}>Book Instantly</Text>

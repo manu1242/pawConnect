@@ -66,7 +66,7 @@ export default function EmergencySuccessScreen() {
 
   const handlePayNow = () => {
     router.push({
-      pathname: "/(Emergency)/payment" as any,
+      pathname: "/Emergency/payment" as any,
       params: {
         bookingId: params.bookingId,
         storeId: params.storeId,
@@ -267,7 +267,7 @@ export default function EmergencySuccessScreen() {
           <TouchableOpacity 
             style={[styles.actionBtn, styles.homeBtn]}
             onPress={() => {
-              router.replace("/(Emergency)/home" as any);
+              router.replace("/Emergency/home" as any);
             }}
           >
             <Ionicons name="home" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />

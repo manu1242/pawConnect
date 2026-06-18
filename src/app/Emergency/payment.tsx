@@ -268,7 +268,7 @@ export default function EmergencyPaymentScreen() {
           <TouchableOpacity 
             style={[styles.actionBtn, styles.homeBtn]}
             onPress={() => {
-              router.replace("/(Emergency)/home" as any);
+              router.replace("/Emergency/home" as any);
             }}
           >
             <Ionicons name="home" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />

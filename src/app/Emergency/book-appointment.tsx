@@ -146,7 +146,7 @@ export default function BookAppointmentScreen() {
             {
               text: "Go to Visits",
               onPress: () => {
-                router.replace("/(Emergency)/appointments");
+                router.replace("/Emergency/appointments");
               },
             },
           ]
@@ -181,7 +181,7 @@ export default function BookAppointmentScreen() {
               <View style={styles.emptyContainer}>
                 <Ionicons name="paw-outline" size={40} color={COLORS.emergencyBorder} />
                 <Text style={styles.emptyText}>No registered pets found.</Text>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/(Emergency)/pets" as any)}>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/Emergency/pets" as any)}>
                   <Text style={styles.emptyBtnText}>Register Pet First</Text>
                 </TouchableOpacity>
               </View>

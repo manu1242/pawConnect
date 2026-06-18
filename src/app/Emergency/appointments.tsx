@@ -84,7 +84,7 @@ export default function RedesignedAppointmentsScreen() {
           <Text style={styles.emptyText}>No appointments scheduled yet.</Text>
           <TouchableOpacity 
             style={styles.bookNowBtn}
-            onPress={() => router.push("/(Emergency)/book-appointment" as any)}
+            onPress={() => router.push("/Emergency/book-appointment" as any)}
           >
             <Text style={styles.bookNowBtnText}>Book Appointment Now</Text>
           </TouchableOpacity>

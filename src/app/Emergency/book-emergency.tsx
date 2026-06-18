@@ -195,7 +195,7 @@ export default function BookEmergencyScreen() {
         const created = res.data?.booking || res.booking;
         // Immediately route to the triage tracking screen
         router.push({
-          pathname: "/(Emergency)/success" as any,
+          pathname: "/Emergency/success" as any,
           params: {
             bookingId: created?._id || created?.id,
             storeId: selectedClinic.id || selectedClinic._id,
