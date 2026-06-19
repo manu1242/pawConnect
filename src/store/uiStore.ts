@@ -5,6 +5,18 @@ interface ToastState {
   type: "success" | "error" | "info" | null;
 }
 
+export interface AlertButton {
+  text: string;
+  onPress?: () => void;
+  style?: "default" | "destructive" | "cancel";
+}
+
+export interface AlertState {
+  title: string | null;
+  message: string | null;
+  buttons: AlertButton[] | null;
+}
+
 interface UiState {
   toast: ToastState;
   showToast: (message: string, type: "success" | "error" | "info") => void;
@@ -15,6 +27,9 @@ interface UiState {
   modalData: any;
   openModal: (modalName: string, data?: any) => void;
   closeModal: () => void;
+  alert: AlertState;
+  showAlert: (title: string, message: string, buttons?: AlertButton[]) => void;
+  hideAlert: () => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -37,4 +52,7 @@ export const useUiStore = create<UiState>((set) => ({
   modalData: null,
   openModal: (modalName, data = null) => set({ activeModal: modalName, modalData: data }),
   closeModal: () => set({ activeModal: null, modalData: null }),
+  alert: { title: null, message: null, buttons: null },
+  showAlert: (title, message, buttons) => set({ alert: { title, message, buttons: buttons || null } }),
+  hideAlert: () => set({ alert: { title: null, message: null, buttons: null } }),
 }));

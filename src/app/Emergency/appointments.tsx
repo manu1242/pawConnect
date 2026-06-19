@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Alert, Linking } from "react-native";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Linking } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useBookings, useUpdateBookingStatusMutation } from "../../services/queries/hooks";
@@ -10,10 +10,10 @@ export default function RedesignedAppointmentsScreen() {
   const params = useLocalSearchParams();
   const { data: bookings = [], isLoading } = useBookings("user");
   const cancelMutation = useUpdateBookingStatusMutation("user");
-  const { showToast } = useUiStore();
+  const { showToast, showAlert } = useUiStore();
 
   const handleCancelBooking = (bookingId: string) => {
-    Alert.alert(
+    showAlert(
       "Cancel Appointment",
       "Are you sure you want to cancel this veterinary appointment?",
       [
@@ -40,7 +40,7 @@ export default function RedesignedAppointmentsScreen() {
   };
 
   const handleReschedule = (bookingId: string, clinicName: string) => {
-    Alert.alert(
+    showAlert(
       "Reschedule Request",
       `Would you like to send a request to ${clinicName} to reschedule your slot?`,
       [

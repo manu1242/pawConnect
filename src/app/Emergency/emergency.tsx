@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Linking, Image, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Linking, Image } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useStores } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
+import { useUiStore } from "../../store/uiStore";
 
 const EMERGENCY_CATEGORIES = [
   { id: "breathing", name: "Breathing Issues", desc: "Choking, rapid panting, gasping", icon: "cellular-outline", bg: "rgba(239, 68, 68, 0.15)", color: "#EF4444" },
@@ -17,16 +18,17 @@ const EMERGENCY_CATEGORIES = [
 export default function EmergencyScreen() {
   const { data: stores = [] } = useStores();
   const [search, setSearch] = useState("");
+  const { showAlert } = useUiStore();
 
   const handleCallHotline = () => {
     Linking.openURL("tel:108").catch(() => {
-      Alert.alert("Emergency Hotline", "Calling Emergency Services: 108");
+      showAlert("Emergency Hotline", "Calling Emergency Services: 108");
     });
   };
 
   const handleCallClinic = (phone: string, name: string) => {
     Linking.openURL(`tel:${phone || "9999999999"}`).catch(() => {
-      Alert.alert("Call Clinic", `Calling ${name} at ${phone || "9999999999"}`);
+      showAlert("Call Clinic", `Calling ${name} at ${phone || "9999999999"}`);
     });
   };
 
@@ -118,7 +120,7 @@ export default function EmergencyScreen() {
                     <Text style={styles.openPillText}>OPEN 24/7</Text>
                   </View>
                 </View>
-                <Text style={styles.clinicDistance}>📍 {clinic.distance || "1.5 km"} • Rating: ⭐ {clinic.rating || "4.8"}</Text>
+                <Text style={styles.clinicDistance}>📍 {clinic.distance} • Rating: ⭐ {clinic.rating}</Text>
                 
                 {/* Immediate Action Buttons */}
                 <View style={styles.clinicActions}>

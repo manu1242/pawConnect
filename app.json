@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "PawConnectApp",
-    "slug": "PawConnectApp",
-    "version": "0.5.4",
+    "name": "PawConnect",
+    "slug": "PawConnect",
+    "version": "1.05.4",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "pawconnectapp",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.pawconnect.app",
-      "versionCode": 3,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -61,7 +61,14 @@
       ],
       "expo-secure-store",
       "expo-audio",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#FF6B35"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

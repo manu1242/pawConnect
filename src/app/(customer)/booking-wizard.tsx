@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Image, Modal } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Location from "expo-location";
@@ -19,7 +19,24 @@ export default function BookingWizardScreen() {
 
   const [step, setStep] = useState(1);
   const [selectedPet, setSelectedPet] = useState<any>(bookingDraft.petDetails || null);
-  const [date, setDate] = useState(bookingDraft.date || "2026-06-17");
+  const [viewingPet, setViewingPet] = useState<any>(null);
+
+  const getUpcomingDates = () => {
+    const dates = [];
+    const today = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      dates.push(`${yyyy}-${mm}-${dd}`);
+    }
+    return dates;
+  };
+
+  const upcomingDates = getUpcomingDates();
+  const [date, setDate] = useState(bookingDraft.date || upcomingDates[0]);
   const [slot, setSlot] = useState(bookingDraft.timeSlot || "");
   
   interface SlotInfo {
@@ -355,17 +372,38 @@ export default function BookingWizardScreen() {
               pets.map((pet) => {
                 const petId = pet.id || (pet as any)._id;
                 const isSelected = (selectedPet?.id || (selectedPet as any)?._id) === petId;
+                const petImg = pet.photo || pet.profileImage || pet.image || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=150";
                 return (
                   <TouchableOpacity
                     key={petId}
                     style={[styles.selectionCard, isSelected ? styles.cardActive : null]}
                     onPress={() => setSelectedPet(pet)}
+                    activeOpacity={0.9}
                   >
-                    <Ionicons name="paw" size={20} color={isSelected ? COLORS.primary : COLORS.textMuted} />
-                    <View style={{ marginLeft: 12 }}>
+                    <Ionicons
+                      name={isSelected ? "checkbox" : "square-outline"}
+                      size={22}
+                      color={isSelected ? COLORS.primary : COLORS.textMuted}
+                      style={{ marginRight: 12 }}
+                    />
+                    <Image
+                      source={{ uri: petImg }}
+                      style={styles.petSelectionImage}
+                    />
+                    <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={styles.cardName}>{pet.name}</Text>
                       <Text style={styles.cardSub}>{pet.breed} • {pet.age} years old</Text>
                     </View>
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setViewingPet(pet);
+                      }}
+                      style={styles.eyeBtn}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="eye-outline" size={20} color={COLORS.primary} />
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 );
               })
@@ -376,20 +414,37 @@ export default function BookingWizardScreen() {
         {/* STEP 2: DATE & TIME */}
         {step === 2 && (
           <View>
-            <Text style={styles.stepTitle}>Choose a time slot</Text>
-            <View style={styles.daysRow}>
-              {["2026-06-17", "2026-06-18", "2026-06-19"].map((d) => (
-                <TouchableOpacity
-                  key={d}
-                  style={[styles.dayChip, date === d ? styles.dayChipActive : null]}
-                  onPress={() => setDate(d)}
-                >
-                  <Text style={[styles.dayText, date === d ? styles.dayTextActive : null]}>
-                    {d.split("-")[2]}/{d.split("-")[1]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={styles.stepTitle}>Choose date & time slot</Text>
+            
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.daysScrollView}
+              contentContainerStyle={styles.daysScrollContent}
+            >
+              {upcomingDates.map((d) => {
+                const dateObj = new Date(d);
+                const dayLabel = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+                const dateNum = d.split("-")[2];
+                const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+                const isSelected = date === d;
+
+                return (
+                  <TouchableOpacity
+                    key={d}
+                    style={[styles.dayChip, isSelected ? styles.dayChipActive : null]}
+                    onPress={() => setDate(d)}
+                  >
+                    <Text style={[styles.dayLabelText, isSelected ? styles.dayLabelTextActive : null]}>
+                      {dayLabel}
+                    </Text>
+                    <Text style={[styles.dayText, isSelected ? styles.dayTextActive : null]}>
+                      {dateNum} {monthName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
             {loadingSlots ? (
               <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 24 }} />
@@ -686,6 +741,100 @@ export default function BookingWizardScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Pet Detail Modal */}
+      <Modal
+        visible={viewingPet !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setViewingPet(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pet Info Details</Text>
+              <TouchableOpacity onPress={() => setViewingPet(null)}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+
+            {viewingPet && (
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalScroll}>
+                <Image
+                  source={{ uri: viewingPet.photo || viewingPet.profileImage || viewingPet.image || "https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=300" }}
+                  style={styles.modalPetImage}
+                />
+                
+                <Text style={styles.modalPetName}>{viewingPet.name}</Text>
+                <Text style={styles.modalPetBreed}>{viewingPet.petType || "Dog"} • {viewingPet.breed}</Text>
+
+                <View style={styles.petMetaGrid}>
+                  <View style={styles.petMetaBox}>
+                    <Text style={styles.petMetaLabel}>Age</Text>
+                    <Text style={styles.petMetaValue}>{viewingPet.age} Years</Text>
+                  </View>
+                  <View style={styles.petMetaBox}>
+                    <Text style={styles.petMetaLabel}>Weight</Text>
+                    <Text style={styles.petMetaValue}>{viewingPet.weight} Kg</Text>
+                  </View>
+                  <View style={styles.petMetaBox}>
+                    <Text style={styles.petMetaLabel}>Gender</Text>
+                    <Text style={styles.petMetaValue}>{viewingPet.gender}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoSection}>
+                  <Text style={styles.infoSectionTitle}>Vaccination Status</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+                    <Ionicons
+                      name={viewingPet.vaccinated ? "checkmark-circle" : "alert-circle"}
+                      size={20}
+                      color={viewingPet.vaccinated ? "#10B981" : "#EF4444"}
+                    />
+                    <Text style={{ marginLeft: 6, fontSize: 14, fontWeight: "600", color: "#27272A" }}>
+                      {viewingPet.vaccinated ? "Fully Vaccinated" : "Not Vaccinated"}
+                    </Text>
+                  </View>
+                </View>
+
+                {viewingPet.medicalConditions ? (
+                  <View style={styles.infoSection}>
+                    <Text style={styles.infoSectionTitle}>Medical Conditions</Text>
+                    <Text style={styles.infoSectionValue}>{viewingPet.medicalConditions}</Text>
+                  </View>
+                ) : null}
+
+                {viewingPet.allergies ? (
+                  <View style={styles.infoSection}>
+                    <Text style={styles.infoSectionTitle}>Allergies</Text>
+                    <Text style={styles.infoSectionValue}>{viewingPet.allergies}</Text>
+                  </View>
+                ) : null}
+
+                {viewingPet.medications ? (
+                  <View style={styles.infoSection}>
+                    <Text style={styles.infoSectionTitle}>Current Medications</Text>
+                    <Text style={styles.infoSectionValue}>{viewingPet.medications}</Text>
+                  </View>
+                ) : null}
+
+                {viewingPet.specialInstructions ? (
+                  <View style={styles.infoSection}>
+                    <Text style={styles.infoSectionTitle}>Special Instructions</Text>
+                    <Text style={styles.infoSectionValue}>{viewingPet.specialInstructions}</Text>
+                  </View>
+                ) : null}
+              </ScrollView>
+            )}
+
+            <CustomButton
+              title="Close Details"
+              onPress={() => setViewingPet(null)}
+              style={{ marginTop: 16 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -782,13 +931,14 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   dayChip: {
-    flex: 1,
-    paddingVertical: 12,
+    width: 85,
+    paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     backgroundColor: "#FFF",
     alignItems: "center",
+    justifyContent: "center",
   },
   dayChipActive: {
     borderColor: COLORS.primary,
@@ -1151,5 +1301,129 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontWeight: "800",
     fontSize: 15,
+  },
+  petSelectionImage: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#F1F5F9",
+  },
+  eyeBtn: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#FFEDD5",
+  },
+  daysScrollView: {
+    marginBottom: 20,
+  },
+  daysScrollContent: {
+    gap: 10,
+    paddingRight: 20,
+  },
+  dayLabelText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  dayLabelTextActive: {
+    color: COLORS.primary,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    maxHeight: "85%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    paddingBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#18181B",
+  },
+  modalScroll: {
+    paddingBottom: 20,
+  },
+  modalPetImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    alignSelf: "center",
+    marginBottom: 16,
+    backgroundColor: "#F1F5F9",
+  },
+  modalPetName: {
+    fontSize: 22,
+    fontWeight: "900",
+    color: "#18181B",
+    textAlign: "center",
+  },
+  modalPetBreed: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    textAlign: "center",
+    marginBottom: 20,
+    fontWeight: "600",
+  },
+  petMetaGrid: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  petMetaBox: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  petMetaLabel: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  petMetaValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#27272A",
+  },
+  infoSection: {
+    marginBottom: 16,
+    backgroundColor: "#FAFAFA",
+    padding: 12,
+    borderRadius: 12,
+  },
+  infoSectionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+    marginBottom: 4,
+  },
+  infoSectionValue: {
+    fontSize: 14,
+    color: "#27272A",
+    fontWeight: "600",
+    lineHeight: 20,
   },
 });

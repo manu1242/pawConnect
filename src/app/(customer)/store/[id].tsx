@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Dimensions } from "react-native";
+import React, { useState, useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Dimensions, Animated } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useStoreDetails } from "../../../services/queries/hooks";
@@ -9,6 +9,56 @@ import { COLORS } from "../../../theme/colors";
 import { CustomButton } from "../../../components/common/CustomButton";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+// Reusable Pulsing Skeleton Component for premium UX
+const SkeletonPulse = ({ style }: { style: any }) => {
+  const pulseAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.7,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  return <Animated.View style={[style, { opacity: pulseAnim }]} />;
+};
+
+function StoreDetailsSkeleton() {
+  return (
+    <View style={styles.skeletonContainer}>
+      <SkeletonPulse style={styles.skeletonBanner} />
+      <View style={styles.skeletonContent}>
+        <SkeletonPulse style={styles.skeletonTitle} />
+        <SkeletonPulse style={styles.skeletonAddress} />
+        <View style={styles.skeletonStatsRow}>
+          <SkeletonPulse style={styles.skeletonStatBox} />
+          <SkeletonPulse style={styles.skeletonStatBox} />
+          <SkeletonPulse style={styles.skeletonStatBox} />
+        </View>
+        <View style={styles.skeletonTabRow}>
+          <SkeletonPulse style={styles.skeletonTabPill} />
+          <SkeletonPulse style={styles.skeletonTabPill} />
+          <SkeletonPulse style={styles.skeletonTabPill} />
+          <SkeletonPulse style={styles.skeletonTabPill} />
+        </View>
+        <SkeletonPulse style={styles.skeletonMainCard} />
+        <SkeletonPulse style={styles.skeletonLine} />
+        <SkeletonPulse style={styles.skeletonLineShort} />
+      </View>
+    </View>
+  );
+}
 
 const InfoRow = ({ label, value }: { label: string; value: any }) => {
   if (!value) return null;
@@ -153,13 +203,19 @@ export default function StoreDetailsScreen() {
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
   const [expandedServiceIds, setExpandedServiceIds] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState("About");
+  const scrollRef = useRef<ScrollView>(null);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    // Smooth scroll down to tab content area (approximately 330px from top)
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: 330, animated: true });
+    }, 100);
+  };
 
   if (isLoading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
+    return <StoreDetailsSkeleton />;
   }
 
   if (!store) {
@@ -339,10 +395,11 @@ export default function StoreDetailsScreen() {
   return (
     <View style={styles.screenWrapper}>
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         contentContainerStyle={[
           styles.scrollContent,
-          { paddingBottom: selectedServiceIds.length > 0 ? 100 : 40 },
+          { paddingBottom: 130 },
         ]}
         showsVerticalScrollIndicator={false}
       >
@@ -406,278 +463,293 @@ export default function StoreDetailsScreen() {
           </View>
         </View>
 
-        {/* About Us description with collapse toggle */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About Us</Text>
-          <Text style={styles.descriptionText}>{displayDescription}</Text>
-          {shouldShowSeeMore && (
-            <TouchableOpacity onPress={() => setDescCollapsed(!descCollapsed)} style={styles.seeMoreBtn}>
-              <Text style={styles.seeMoreText}>{descCollapsed ? "Read More" : "Read Less"}</Text>
-              <Ionicons name={descCollapsed ? "chevron-down" : "chevron-up"} size={14} color={COLORS.primary} style={{ marginLeft: 2 }} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Highlights Row */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{store.yearsOfExperience || 0}</Text>
-            <Text style={styles.statLabel}>Years Exp.</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{store.numberOfEmployees || 0}</Text>
-            <Text style={styles.statLabel}>Employees</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{store.profileViews || 0}</Text>
-            <Text style={styles.statLabel}>Views</Text>
-          </View>
-        </View>
-
-        {/* Photos Gallery */}
-        {store.gallery && store.gallery.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Gallery</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 20 }}
-            >
-              {store.gallery.map((img: string, index: number) => (
-                <TouchableOpacity key={index} activeOpacity={0.85} onPress={() => setViewerImage(img)}>
-                  <Image
-                    source={{ uri: img }}
-                    style={styles.galleryImage}
-                  />
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Our Services Redirect */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Our Services</Text>
-          <Text style={styles.subTitleInfo}>Choose from a wide variety of professional pet care services</Text>
-          <CustomButton
-            title="Select Services"
-            onPress={() => router.push({ pathname: "/store/[id]/select-services", params: { id: store.id || store._id } } as any)}
-            style={{ marginTop: 12 }}
-          />
-        </View>
-
-        {/* Business Hours */}
-        {store.businessHours && store.businessHours.length > 0 && (
-          <View style={styles.section}>
-            <TouchableOpacity
-              style={styles.hoursHeaderRow}
-              onPress={() => setHoursExpanded(!hoursExpanded)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Business Hours</Text>
-              <View style={styles.dropdownToggle}>
-                <Text style={styles.dropdownToggleText}>
-                  {hoursExpanded ? "Hide Details" : "Show Weekly"}
+        {/* Horizontal Scrollable Tabs */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.tabsContainer}
+          contentContainerStyle={styles.tabsContentContainer}
+        >
+          {["About", "Services", "Gallery", "Business Info", "Hours"].map((tab) => {
+            const isActive = activeTab === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabButton, isActive && styles.tabButtonActive]}
+                onPress={() => handleTabChange(tab)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
+                  {tab}
                 </Text>
-                <Ionicons
-                  name={hoursExpanded ? "chevron-up" : "chevron-down"}
-                  size={16}
-                  color={COLORS.primary}
-                />
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Tab Content Wrapper */}
+        <View style={styles.tabContentWrapper}>
+          {activeTab === "About" && (
+            <View style={styles.tabContentArea}>
+              {/* About Us description with collapse toggle */}
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>About Us</Text>
+                <Text style={styles.descriptionText}>{displayDescription}</Text>
+                {shouldShowSeeMore && (
+                  <TouchableOpacity onPress={() => setDescCollapsed(!descCollapsed)} style={styles.seeMoreBtn}>
+                    <Text style={styles.seeMoreText}>{descCollapsed ? "Read More" : "Read Less"}</Text>
+                    <Ionicons name={descCollapsed ? "chevron-down" : "chevron-up"} size={14} color={COLORS.primary} style={{ marginLeft: 2 }} />
+                  </TouchableOpacity>
+                )}
               </View>
-            </TouchableOpacity>
 
-            {!hoursExpanded && todayHours && (
-              <View style={styles.todayHoursSummary}>
-                <Text style={styles.todayHoursLabel}>Today ({todayHours.day}):</Text>
-                <Text style={[styles.todayHoursValue, { color: todayHours.isOpen ? COLORS.success : COLORS.danger }]}>
-                  {todayHours.isOpen ? `${todayHours.openTime} - ${todayHours.closeTime}` : "Closed"}
-                </Text>
-              </View>
-            )}
-
-            {hoursExpanded && (
-              <View style={styles.hoursCard}>
-                {store.businessHours.map((item, index) => (
-                  <View key={index} style={styles.hourRow}>
-                    <Text style={styles.dayText}>{item.day}</Text>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor: item.isOpen ? "#DCFCE7" : "#FEE2E2",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: item.isOpen ? COLORS.success : COLORS.danger,
-                          fontWeight: "700",
-                          fontSize: 12,
-                        }}
-                      >
-                        {item.isOpen ? `${item.openTime} - ${item.closeTime}` : "Closed"}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Store Categories */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Store Categories</Text>
-          <View style={styles.chipContainer}>
-            {store.storeTypes?.map((item: string, index: number) => (
-              <Chip key={`${item}-${index}`} title={item} />
-            ))}
-          </View>
-        </View>
-
-        {/* Products Available */}
-        {store.productCategories && store.productCategories.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Products Available</Text>
-            <View style={styles.chipContainer}>
-              {store.productCategories.map((item: string, index: number) => (
-                <Chip key={`${item}-${index}`} title={item} />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Pets Available */}
-        {store.petSaleTypes && store.petSaleTypes.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pets Available</Text>
-            <View style={styles.chipContainer}>
-              {store.petSaleTypes.map((item: string, index: number) => (
-                <Chip key={`${item}-${index}`} title={item} />
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Facilities */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Facilities</Text>
-          <View style={styles.chipContainer}>
-            {store.facilities?.map((item: string, index: number) => (
-              <Chip key={`${item}-${index}`} title={item} />
-            ))}
-          </View>
-        </View>
-
-        {/* Service Features */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Service Features</Text>
-          <View style={styles.detailCard}>
-            <InfoRow
-              label="Home Pickup"
-              value={store.homePickup ? "Available" : "No"}
-            />
-            <InfoRow
-              label="Home Delivery"
-              value={store.homeDelivery ? "Available" : "No"}
-            />
-            <InfoRow
-              label="Emergency Visit"
-              value={store.emergencyHomeVisit ? "Available" : "No"}
-            />
-            <InfoRow
-              label="Service Radius"
-              value={`${store.serviceRadius || 0} KM`}
-            />
-            <InfoRow
-              label="Emergency Charges"
-              value={`₹${store.emergencyCharges || 0}`}
-            />
-          </View>
-        </View>
-
-        {/* Business Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Business Information</Text>
-          <View style={styles.detailCard}>
-            <InfoRow
-              label="GST Number"
-              value={store.gstNumber}
-            />
-            <InfoRow
-              label="Business Reg."
-              value={store.businessRegNumber}
-            />
-            <InfoRow
-              label="Service Mode"
-              value={store.serviceMode}
-            />
-            <InfoRow
-              label="Booking Mode"
-              value={store.bookingMode}
-            />
-            <InfoRow
-              label="24 x 7"
-              value={store.is24x7 ? "Yes" : "No"}
-            />
-          </View>
-        </View>
-
-        {/* Contact Information */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          <View style={styles.detailCard}>
-            <InfoRow
-              label="Owner"
-              value={store.ownerDetails?.fullName || store.ownerDetails?.name}
-            />
-            <InfoRow
-              label="Phone"
-              value={store.phone}
-            />
-            <InfoRow
-              label="Alternate"
-              value={store.ownerDetails?.alternatePhone}
-            />
-            <InfoRow
-              label="Emergency"
-              value={store.emergencyContact}
-            />
-            <InfoRow
-              label="Email"
-              value={store.ownerDetails?.email}
-            />
-          </View>
-        </View>
-
-        {/* Payment Methods */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Payment Methods</Text>
-          <View style={styles.paymentsGrid}>
-            {store.paymentMethods?.map((item: string, index: number) => {
-              const details = getPaymentMethodStyle(item);
-              return (
-                <View
-                  key={`${item}-${index}`}
-                  style={[
-                    styles.paymentCard,
-                    { backgroundColor: details.bg, borderColor: details.border },
-                  ]}
-                >
-                  <Ionicons name={details.icon} size={20} color={details.text} />
-                  <Text style={[styles.paymentCardText, { color: details.text }]}>
-                    {item}
-                  </Text>
+              {/* Highlights Row */}
+              <View style={styles.statsContainer}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{store.yearsOfExperience || 0}</Text>
+                  <Text style={styles.statLabel}>Years Exp.</Text>
                 </View>
-              );
-            })}
-          </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{store.numberOfEmployees || 0}</Text>
+                  <Text style={styles.statLabel}>Employees</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{store.profileViews || 0}</Text>
+                  <Text style={styles.statLabel}>Views</Text>
+                </View>
+              </View>
+
+              {/* Facilities */}
+              {store.facilities && store.facilities.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.tabSectionTitle}>Facilities</Text>
+                  <View style={styles.chipContainer}>
+                    {store.facilities.map((item: string, index: number) => (
+                      <Chip key={`${item}-${index}`} title={item} />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Store Categories */}
+              {store.storeTypes && store.storeTypes.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.tabSectionTitle}>Store Categories</Text>
+                  <View style={styles.chipContainer}>
+                    {store.storeTypes.map((item: string, index: number) => (
+                      <Chip key={`${item}-${index}`} title={item} />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Products Available */}
+              {store.productCategories && store.productCategories.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.tabSectionTitle}>Products Available</Text>
+                  <View style={styles.chipContainer}>
+                    {store.productCategories.map((item: string, index: number) => (
+                      <Chip key={`${item}-${index}`} title={item} />
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Pets Available */}
+              {store.petSaleTypes && store.petSaleTypes.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.tabSectionTitle}>Pets Available</Text>
+                  <View style={styles.chipContainer}>
+                    {store.petSaleTypes.map((item: string, index: number) => (
+                      <Chip key={`${item}-${index}`} title={item} />
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
+          {activeTab === "Services" && (
+            <View style={styles.tabContentArea}>
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Our Services</Text>
+                <Text style={styles.subTitleInfo}>Select one or more services to book an appointment</Text>
+                {services.length > 0 ? (
+                  services.map((srv: any) => {
+                    const parsedSrv = parseServiceMetadata(srv);
+                    const srvId = parsedSrv._id || parsedSrv.id;
+                    const isSelected = selectedServiceIds.includes(srvId);
+                    return (
+                      <TouchableOpacity
+                        key={`service-${srvId}`}
+                        style={[
+                          styles.serviceSelectCard,
+                          isSelected && styles.serviceSelectCardActive,
+                        ]}
+                        onPress={() => toggleServiceSelection(parsedSrv)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.serviceHeaderRow}>
+                          <View style={{ flex: 1, flexDirection: "row", alignItems: "center" }}>
+                            <Ionicons
+                              name={isSelected ? "checkbox" : "square-outline"}
+                              size={22}
+                              color={isSelected ? COLORS.primary : COLORS.textMuted}
+                              style={{ marginRight: 12 }}
+                            />
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.serviceName}>{parsedSrv.name}</Text>
+                              {parsedSrv.description ? (
+                                <Text style={styles.serviceDesc} numberOfLines={2}>
+                                  {parsedSrv.description}
+                                </Text>
+                              ) : null}
+                            </View>
+                          </View>
+                          <Text style={styles.servicePrice}>₹{parsedSrv.offerPrice || parsedSrv.price}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.noDataText}>No services registered for this store.</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {activeTab === "Gallery" && (
+            <View style={styles.tabContentArea}>
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Store Gallery</Text>
+                {store.gallery && store.gallery.length > 0 ? (
+                  <View style={styles.galleryGrid}>
+                    {store.gallery.map((img: string, index: number) => (
+                      <TouchableOpacity
+                        key={`gallery-grid-${index}`}
+                        activeOpacity={0.85}
+                        onPress={() => setViewerImage(img)}
+                        style={styles.galleryGridItem}
+                      >
+                        <Image source={{ uri: img }} style={styles.galleryGridPhoto} />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.emptyGalleryCard}>
+                    <Ionicons name="images-outline" size={44} color={COLORS.textMuted} style={{ marginBottom: 12 }} />
+                    <Text style={styles.noDataText}>No gallery photos available.</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
+
+          {activeTab === "Business Info" && (
+            <View style={styles.tabContentArea}>
+              {/* Service Features */}
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Service Features</Text>
+                <View style={styles.detailCard}>
+                  <InfoRow label="Home Pickup" value={store.homePickup ? "Available" : "No"} />
+                  <InfoRow label="Home Delivery" value={store.homeDelivery ? "Available" : "No"} />
+                  <InfoRow label="Emergency Visit" value={store.emergencyHomeVisit ? "Available" : "No"} />
+                  <InfoRow label="Service Radius" value={`${store.serviceRadius || 0} KM`} />
+                  <InfoRow label="Emergency Charges" value={`₹${store.emergencyCharges || 0}`} />
+                </View>
+              </View>
+
+              {/* Business Information */}
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Business Information</Text>
+                <View style={styles.detailCard}>
+                  <InfoRow label="GST Number" value={store.gstNumber} />
+                  <InfoRow label="Business Reg." value={store.businessRegNumber} />
+                  <InfoRow label="Service Mode" value={store.serviceMode} />
+                  <InfoRow label="Booking Mode" value={store.bookingMode} />
+                  <InfoRow label="24 x 7" value={store.is24x7 ? "Yes" : "No"} />
+                </View>
+              </View>
+
+              {/* Contact Information */}
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Contact Information</Text>
+                <View style={styles.detailCard}>
+                  <InfoRow label="Owner" value={store.ownerDetails?.fullName || store.ownerDetails?.name} />
+                  <InfoRow label="Phone" value={store.phone} />
+                  <InfoRow label="Alternate" value={store.ownerDetails?.alternatePhone} />
+                  <InfoRow label="Emergency" value={store.emergencyContact} />
+                  <InfoRow label="Email" value={store.ownerDetails?.email} />
+                </View>
+              </View>
+
+              {/* Payment Methods */}
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Payment Methods</Text>
+                <View style={styles.paymentsGrid}>
+                  {store.paymentMethods?.map((item: string, index: number) => {
+                    const details = getPaymentMethodStyle(item);
+                    return (
+                      <View
+                        key={`${item}-${index}`}
+                        style={[
+                          styles.paymentCard,
+                          { backgroundColor: details.bg, borderColor: details.border },
+                        ]}
+                      >
+                        <Ionicons name={details.icon} size={20} color={details.text} />
+                        <Text style={[styles.paymentCardText, { color: details.text }]}>
+                          {item}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            </View>
+          )}
+
+          {activeTab === "Hours" && (
+            <View style={styles.tabContentArea}>
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Operating Schedule</Text>
+                <View style={styles.hoursCard}>
+                  {store.businessHours && store.businessHours.length > 0 ? (
+                    store.businessHours.map((item, index) => (
+                      <View key={index} style={styles.hourRow}>
+                        <Text style={styles.dayText}>{item.day}</Text>
+                        <View
+                          style={[
+                            styles.statusBadge,
+                            {
+                              backgroundColor: item.isOpen ? "#DCFCE7" : "#FEE2E2",
+                            },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: item.isOpen ? COLORS.success : COLORS.danger,
+                              fontWeight: "700",
+                              fontSize: 12,
+                            }}
+                          >
+                            {item.isOpen ? `${item.openTime} - ${item.closeTime}` : "Closed"}
+                          </Text>
+                        </View>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noDataText}>No operating schedule registered.</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
 
       {/* Sticky Bottom Booking Action Bar */}
-      {selectedServiceIds.length > 0 && (
+      {selectedServiceIds.length > 0 ? (
         <View style={styles.stickyFooter}>
           <View style={styles.footerPriceCol}>
             <Text style={styles.footerLabel}>
@@ -688,6 +760,18 @@ export default function StoreDetailsScreen() {
           <CustomButton
             title="Book Selected"
             onPress={handleBookSelected}
+            style={styles.footerBookBtn}
+          />
+        </View>
+      ) : (
+        <View style={styles.stickyFooter}>
+          <View style={styles.footerPriceCol}>
+            <Text style={styles.footerLabel}>Ready to Book?</Text>
+            <Text style={styles.footerPrice}>Book services now</Text>
+          </View>
+          <CustomButton
+            title="Book the service"
+            onPress={() => handleTabChange("Services")}
             style={styles.footerBookBtn}
           />
         </View>
@@ -726,7 +810,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   loaderContainer: {
     flex: 1,
@@ -1252,9 +1336,9 @@ const styles = StyleSheet.create({
     flexDirection: "column",
   },
   footerLabel: {
-    fontSize: 11,
+    fontSize: 8,
     color: COLORS.textMuted,
-    fontWeight: "700",
+    fontWeight: "400",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -1291,5 +1375,145 @@ const styles = StyleSheet.create({
   modalFullscreenImage: {
     width: SCREEN_WIDTH * 0.95,
     height: SCREEN_HEIGHT * 0.8,
+  },
+  tabsContainer: {
+    paddingHorizontal: 20,
+    marginVertical: 14,
+    height: 48,
+  },
+  tabsContentContainer: {
+    gap: 8,
+    alignItems: "center",
+    paddingRight: 40,
+  },
+  tabButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: "#F4F4F5",
+    marginRight: 8,
+  },
+  tabButtonActive: {
+    backgroundColor: COLORS.primary,
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+  },
+  tabButtonTextActive: {
+    color: "#FFFFFF",
+  },
+  tabContentWrapper: {
+    flex: 1,
+  },
+  tabContentArea: {
+    flex: 1,
+  },
+  tabSectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#27272A",
+    marginBottom: 10,
+    paddingHorizontal: 20,
+  },
+  noDataText: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 20,
+  },
+  galleryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 8,
+  },
+  galleryGridItem: {
+    width: (SCREEN_WIDTH - 52) / 3,
+    height: 90,
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+  galleryGridPhoto: {
+    width: "100%",
+    height: "100%",
+  },
+  emptyGalleryCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  skeletonContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  skeletonBanner: {
+    height: 200,
+    width: "100%",
+    backgroundColor: "#E4E4E7",
+  },
+  skeletonContent: {
+    padding: 20,
+  },
+  skeletonTitle: {
+    height: 24,
+    width: "60%",
+    backgroundColor: "#E4E4E7",
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  skeletonAddress: {
+    height: 16,
+    width: "80%",
+    backgroundColor: "#E4E4E7",
+    borderRadius: 4,
+    marginBottom: 20,
+  },
+  skeletonStatsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  skeletonStatBox: {
+    flex: 1,
+    height: 50,
+    backgroundColor: "#E4E4E7",
+    borderRadius: 10,
+  },
+  skeletonTabRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 24,
+  },
+  skeletonTabPill: {
+    width: 80,
+    height: 36,
+    backgroundColor: "#E4E4E7",
+    borderRadius: 18,
+  },
+  skeletonMainCard: {
+    height: 120,
+    backgroundColor: "#E4E4E7",
+    borderRadius: 14,
+    marginBottom: 16,
+  },
+  skeletonLine: {
+    height: 14,
+    width: "90%",
+    backgroundColor: "#E4E4E7",
+    borderRadius: 4,
+    marginBottom: 8,
+  },
+  skeletonLineShort: {
+    height: 14,
+    width: "50%",
+    backgroundColor: "#E4E4E7",
+    borderRadius: 4,
   },
 });

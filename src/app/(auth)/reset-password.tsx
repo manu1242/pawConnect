@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useUiStore } from "../../store/uiStore";
@@ -8,11 +8,17 @@ import { CustomInput } from "../../components/common/CustomInput";
 import { CustomButton } from "../../components/common/CustomButton";
 
 export default function ResetPasswordScreen() {
-  const params = useLocalSearchParams<{ email?: string }>();
-  const [token, setToken] = useState("");
+  const params = useLocalSearchParams<{ email?: string; token?: string }>();
+  const [token, setToken] = useState(params.token || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+
+  useEffect(() => {
+    if (params.token) {
+      setToken(params.token);
+    }
+  }, [params.token]);
   
   const { showToast } = useUiStore();
 

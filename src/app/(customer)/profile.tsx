@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -27,28 +29,32 @@ export default function CustomerProfileScreen() {
     (b) => b.status === "pending" || b.status === "accepted"
   ).length;
 
-  const handleLogout = async () => {
-    Alert.alert("Logout", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Logout",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await authApi.logout();
-          } catch (e) {
-            // silent fail
-          }
-          await SecureStore.deleteItemAsync("pawconnect_access_token");
-          clearAuth();
-          router.replace("/login" as any);
-        },
-      },
-    ]);
+  const [showLogoutModal, setShowLogoutModal] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await authApi.logout();
+    } catch (e) {
+      // silent fail
+    }
+    // High-fidelity artificial delay to make the spinner feel extremely premium
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await SecureStore.deleteItemAsync("pawconnect_access_token");
+    clearAuth();
+    setShowLogoutModal(false);
+    setIsLoggingOut(false);
+    router.replace("/login" as any);
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
       {/* 👤 Profile Header */}
       <View style={styles.profileHeader}>
         <View style={styles.avatar}>
@@ -233,7 +239,56 @@ export default function CustomerProfileScreen() {
         style={styles.logoutBtn} 
         textStyle={{ color: COLORS.danger }} 
       />
-    </ScrollView>
+      </ScrollView>
+
+      {/* Custom Logout Confirmation Dialog & Loader */}
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          if (!isLoggingOut) setShowLogoutModal(false);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {isLoggingOut ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.primary} />
+                <Text style={styles.loadingText}>Signing out safely...</Text>
+                <Text style={styles.loadingSub}>Cleaning up your session details</Text>
+              </View>
+            ) : (
+              <View>
+                <View style={styles.modalHeader}>
+                  <View style={styles.warningIconBg}>
+                    <Ionicons name="log-out" size={28} color="#EF4444" />
+                  </View>
+                  <Text style={styles.modalTitle}>Confirm Sign Out</Text>
+                </View>
+                <Text style={styles.modalMessage}>
+                  Are you sure you want to log out of PawConnect? You will need to enter your password again to log in.
+                </Text>
+                <View style={styles.modalButtonsRow}>
+                  <TouchableOpacity
+                    style={styles.cancelBtn}
+                    onPress={() => setShowLogoutModal(false)}
+                  >
+                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.confirmBtn}
+                    onPress={confirmLogout}
+                  >
+                    <Text style={styles.confirmBtnText}>Logout</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -402,5 +457,96 @@ const styles = StyleSheet.create({
   logoutBtn: {
     borderColor: COLORS.danger,
     borderWidth: 1.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(9, 9, 11, 0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  modalContent: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 20,
+  },
+  modalHeader: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  warningIconBg: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FEF2F2",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#18181B",
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#71717A",
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  modalButtonsRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: "#E4E4E7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#52525B",
+  },
+  confirmBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  confirmBtnText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  loadingContainer: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#18181B",
+    marginTop: 16,
+  },
+  loadingSub: {
+    fontSize: 13,
+    color: "#71717A",
+    marginTop: 4,
+    fontWeight: "500",
   },
 });

@@ -55,7 +55,7 @@ export default function EmergencyHomeScreen() {
             onPress={() => router.replace("/(customer)/home" as any)}
             activeOpacity={0.8}
           >
-            <Ionicons name="close-circle-outline" size={16} color={COLORS.emergencyPrimaryOrange} />
+            {/* <Ionicons name="close-circle-outline" size={16} color={COLORS.emergencyPrimaryOrange} /> */}
             <Text style={styles.marketplaceToggleText}>Exit</Text>
           </TouchableOpacity>
 
@@ -88,7 +88,7 @@ export default function EmergencyHomeScreen() {
       <TouchableOpacity 
         style={styles.emergencyCard} 
         activeOpacity={0.9}
-        onPress={() => router.push("/Emergency/emergency/" as any)}
+        onPress={() => router.push("/Emergency/emergency" as any)}
       >
         <View style={styles.emergencyCardHeader}>
           <View style={styles.emergencyPulseContainer}>
@@ -110,11 +110,11 @@ export default function EmergencyHomeScreen() {
       <Text style={styles.sectionTitle}>Quick Actions</Text>
       <View style={styles.gridContainer}>
         {[
-          { name: "🏥 Find Vet", route: "/Emergency/emergency" },
+          { name: "🏥 Find Vet", route: "/Emergency/all-clinics" },
           { name: "📅 Book Appointment", route: "/Emergency/book-appointment" },
           { name: "💉 Vaccinations", route: "/Emergency/pets" },
           { name: "📋 Health Records", route: "/Emergency/profile" },
-          { name: "📍 Nearby Clinics", route: "/Emergency/emergency" },
+          { name: "📍 Nearby Clinics", route: "/Emergency/all-clinics" },
           { name: "☎ Emergency Call", route: "/Emergency/emergency", highlight: true },
         ].map((item, idx) => (
           <TouchableOpacity
@@ -131,7 +131,7 @@ export default function EmergencyHomeScreen() {
       {/* Featured Section: Nearby Veterinary Clinics */}
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Nearby Veterinary Clinics</Text>
-        <TouchableOpacity onPress={() => router.push("/Emergency/emergency/" as any)}>
+        <TouchableOpacity onPress={() => router.push("/Emergency/all-clinics" as any)}>
           <Text style={styles.seeAllText}>See all</Text>
         </TouchableOpacity>
       </View>

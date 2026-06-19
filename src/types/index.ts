@@ -45,18 +45,24 @@ export interface BusinessHours {
 }
 
 export interface Address {
+  street?: string;
   city: string;
+  state?: string;
+  country?: string;
   pincode: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
   area?: string;
 }
 
 export interface StoreService {
+  id?: string;
+  _id?: string;
   name: string;
   price: number;
   duration?: number;
   description?: string;
+  offerPrice?: number;
 }
 
 export interface Store {
@@ -82,6 +88,7 @@ export interface Store {
   };
 
   name: string;
+  category?: string;
   description: string;
 
   logo?: string;
@@ -176,6 +183,12 @@ export interface Store {
   verifiedBadge?: boolean;
   
   images?:string[];
+
+  doctors?: {
+    name: string;
+    specialty: string;
+    experience: string;
+  }[];
 }
 
 export interface CustomerLocation {

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Dimensions, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Dimensions, Image } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Location from "expo-location";
 import { usePets, useStores, useCreateBookingMutation } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
+import { useUiStore } from "../../store/uiStore";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -13,6 +14,7 @@ export default function BookEmergencyScreen() {
   const { data: pets = [], isLoading: loadingPets } = usePets();
   const { data: stores = [], isLoading: loadingStores } = useStores();
   const createBookingMutation = useCreateBookingMutation();
+  const { showAlert } = useUiStore();
 
   // Route Params Pre-population
   const routeSymptom = params.symptom as string;
@@ -129,34 +131,23 @@ export default function BookEmergencyScreen() {
   }, [routeSymptom]);
 
   const handleCreatePetShortcut = () => {
-    Alert.prompt(
-      "Quick Add Pet",
-      "Enter pet's name to register dog immediately:",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Add Pet",
-          onPress: (name: string | undefined) => {
-            if (!name) return;
-            // Select quick temporary dog pet
-            setSelectedPet({ name, breed: "Dog", age: "2 yrs", weight: "12 kg", petType: "Dog", temporary: true });
-          },
-        },
-      ]
-    );
+    router.push({
+      pathname: "/Emergency/pets" as any,
+      params: { fromBooking: "true", clinicId: routeClinicId }
+    });
   };
 
   const handleConfirmBooking = () => {
     if (!selectedPet) {
-      Alert.alert("Step 1 Missing", "Please pick a dog or add one quickly.");
+      showAlert("Step 1 Missing", "Please pick a dog or add one quickly.");
       return;
     }
     if (!selectedClinic) {
-      Alert.alert("Step 2 Missing", "Please select a clinic. If none is near, a remote backup triage doctor will be assigned.");
+      showAlert("Step 2 Missing", "Please select a clinic. If none is near, a remote backup triage doctor will be assigned.");
       return;
     }
     if (!symptomsDescription.trim()) {
-      Alert.alert("Step 4 Missing", "Please specify the symptoms so the vet can prepare.");
+      showAlert("Step 4 Missing", "Please specify the symptoms so the vet can prepare.");
       return;
     }
 
@@ -208,7 +199,7 @@ export default function BookEmergencyScreen() {
         });
       },
       onError: (err: any) => {
-        Alert.alert("Booking Error", err?.response?.data?.message || "Failed to submit emergency booking. Please call the hotline directly.");
+        showAlert("Booking Error", err?.response?.data?.message || "Failed to submit emergency booking. Please call the hotline directly.");
       },
     });
   };

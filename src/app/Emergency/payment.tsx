@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Dimensions, SafeAreaView, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Dimensions, SafeAreaView } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useStoreDetails } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
+import { useUiStore } from "../../store/uiStore";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -20,6 +21,7 @@ export default function EmergencyPaymentScreen() {
   }>();
 
   const { data: store, isLoading: loadingStore } = useStoreDetails(params.storeId || "");
+  const { showAlert } = useUiStore();
 
   // States
   const [selectedMethod, setSelectedMethod] = useState<"upi" | "card">("upi");
@@ -257,7 +259,7 @@ export default function EmergencyPaymentScreen() {
               if (store?.phone) {
                 router.replace(`tel:${store.phone}` as any);
               } else {
-                Alert.alert("Emergency Calling", "Calling vet hotline: +91 99887 76655");
+                showAlert("Emergency Calling", "Calling vet hotline: +91 99887 76655");
               }
             }}
           >

@@ -63,7 +63,7 @@ export default function OwnerStoreScreen() {
       setEditCategory(store.category || store.storeDetails?.category || store.storeTypes?.[0] || "Veterinary");
       setEditDesc(store.description || store.storeDetails?.description || "");
       setEditPhone(store.phone || "");
-      setEditAddress(store.address || "");
+      setEditAddress(typeof store.address === "string" ? store.address : (store.address?.street || ""));
       setEditCity(store.addressDetails?.city || "");
       setEditPincode(store.addressDetails?.pincode || "");
       setEditLatitude(store.latitude?.toString() || "");
@@ -257,6 +257,10 @@ export default function OwnerStoreScreen() {
     setNewDocName("");
     setNewDocSpecialty("");
     setNewDocExp("");
+  };
+
+  const handleRemoveDoctorEdit = (idxToRemove: number) => {
+    setEditDoctors(editDoctors.filter((_, idx) => idx !== idxToRemove));
   };
 
   const handleSaveEdit = () => {

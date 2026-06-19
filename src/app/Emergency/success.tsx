@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, SafeAreaView, Linking, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, SafeAreaView, Linking } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useStoreDetails, useBookingDetails } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
+import { useUiStore } from "../../store/uiStore";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -23,6 +24,8 @@ export default function EmergencySuccessScreen() {
   const queryClient = useQueryClient();
   const { data: store, isLoading: loadingStore } = useStoreDetails(params.storeId || "");
   const { data: booking } = useBookingDetails(params.bookingId || "", "user");
+  const { showAlert } = useUiStore();
+  const storeAny = store as any;
 
   const [timeLeft, setTimeLeft] = useState(900); // 15:00 minutes countdown
   const [mockAccepted, setMockAccepted] = useState(false);
@@ -45,7 +48,7 @@ export default function EmergencySuccessScreen() {
   }, []);
 
   // Determine if booking is accepted
-  const dbAccepted = booking?.status === "accepted" || booking?.status === "approved" || booking?.status === "completed";
+  const dbAccepted = booking?.status === "accepted" || (booking?.status as string) === "approved" || booking?.status === "completed";
   const activeAccepted = dbAccepted || mockAccepted;
 
   const formatTime = (seconds: number) => {
@@ -57,10 +60,10 @@ export default function EmergencySuccessScreen() {
   const handleCallClinic = () => {
     if (store?.phone) {
       Linking.openURL(`tel:${store.phone}`).catch(() => {
-        Alert.alert("Hotline Call", `Calling vet clinic: ${store.phone}`);
+        showAlert("Hotline Call", `Calling vet clinic: ${store.phone}`);
       });
     } else {
-      Alert.alert("Emergency Calling", "Calling vet hotline: +91 99887 76655");
+      showAlert("Emergency Calling", "Calling vet hotline: +91 99887 76655");
     }
   };
 
@@ -86,8 +89,8 @@ export default function EmergencySuccessScreen() {
     const lon1 = parseFloat(params.longitude || "");
     
     // Clinic Coordinates from API
-    const lat2 = store?.latitude || (store?.location?.coordinates ? store.location.coordinates[1] : null);
-    const lon2 = store?.longitude || (store?.location?.coordinates ? store.location.coordinates[0] : null);
+    const lat2 = store?.latitude || (storeAny?.location?.coordinates ? storeAny.location.coordinates[1] : null);
+    const lon2 = store?.longitude || (storeAny?.location?.coordinates ? storeAny.location.coordinates[0] : null);
 
     if (!isNaN(lat1) && !isNaN(lon1) && lat2 && lon2) {
       const R = 6371; // km
@@ -107,10 +110,10 @@ export default function EmergencySuccessScreen() {
   const distText = getDistanceText();
 
   const handleNavigate = () => {
-    const address = store?.address ? (typeof store.address === "string" ? store.address : `${store.address.street || ""}, ${store.address.city || ""}`) : "Vet Clinic";
+    const address = store?.address ? (typeof store.address === "string" ? store.address : `${storeAny.address.street || ""}, ${store.address.city || ""}`) : "Vet Clinic";
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     Linking.openURL(url).catch(() => {
-      Alert.alert("Directions", `Opening maps for: ${address}`);
+      showAlert("Directions", `Opening maps for: ${address}`);
     });
   };
 

@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Dimensions, Animated } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuthStore } from "../../store/authStore";
 import { useUiStore } from "../../store/uiStore";
 import { useStores, usePublicPromos } from "../../services/queries/hooks";
+import { useStoresCacheStore } from "../../store/storesCacheStore";
 import { COLORS } from "../../theme/colors";
 import { StoreCard } from "../../components/cards/StoreCard";
 
@@ -17,13 +18,117 @@ const CATEGORIES = [
 
 const screenWidth = Dimensions.get("window").width;
 
+const SkeletonPulse = ({ style }: { style: any }) => {
+  const pulseAnim = React.useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 0.7,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [pulseAnim]);
+
+  return <Animated.View style={[style, { opacity: pulseAnim }]} />;
+};
+
+function HomeSkeleton() {
+  return (
+    <ScrollView style={styles.skeletonContainer} showsVerticalScrollIndicator={false}>
+      {/* Header Skeleton */}
+      <View style={styles.skeletonHeader}>
+        <View>
+          <SkeletonPulse style={styles.skeletonGreeting} />
+          <SkeletonPulse style={styles.skeletonName} />
+        </View>
+        <SkeletonPulse style={styles.skeletonBell} />
+      </View>
+
+      {/* Search Bar Skeleton */}
+      <SkeletonPulse style={styles.skeletonSearch} />
+
+      {/* Emergency Banner Skeleton */}
+      <SkeletonPulse style={styles.skeletonEmergencyBanner} />
+
+      {/* Section Title Featured */}
+      <View style={styles.skeletonSectionHeader}>
+        <SkeletonPulse style={styles.skeletonSectionTitle} />
+      </View>
+
+      {/* Featured Horizontal List Skeleton */}
+      <View style={styles.skeletonHorizontalRow}>
+        <SkeletonPulse style={styles.skeletonStoreCardHorizontal} />
+        <SkeletonPulse style={styles.skeletonStoreCardHorizontal} />
+      </View>
+
+      {/* Section Title Services */}
+      <View style={styles.skeletonSectionHeader}>
+        <SkeletonPulse style={styles.skeletonSectionTitle} />
+      </View>
+
+      {/* Services Circles Row Skeleton */}
+      <View style={styles.skeletonServicesRow}>
+        <View style={styles.skeletonServiceCol}>
+          <SkeletonPulse style={styles.skeletonServiceCircle} />
+          <SkeletonPulse style={styles.skeletonServiceText} />
+        </View>
+        <View style={styles.skeletonServiceCol}>
+          <SkeletonPulse style={styles.skeletonServiceCircle} />
+          <SkeletonPulse style={styles.skeletonServiceText} />
+        </View>
+        <View style={styles.skeletonServiceCol}>
+          <SkeletonPulse style={styles.skeletonServiceCircle} />
+          <SkeletonPulse style={styles.skeletonServiceText} />
+        </View>
+        <View style={styles.skeletonServiceCol}>
+          <SkeletonPulse style={styles.skeletonServiceCircle} />
+          <SkeletonPulse style={styles.skeletonServiceText} />
+        </View>
+      </View>
+
+      {/* Section Title Nearby */}
+      <View style={styles.skeletonSectionHeader}>
+        <SkeletonPulse style={styles.skeletonSectionTitle} />
+      </View>
+
+      {/* Nearby Stores Vertical Skeleton */}
+      <SkeletonPulse style={styles.skeletonStoreCardVertical} />
+      <SkeletonPulse style={styles.skeletonStoreCardVertical} />
+    </ScrollView>
+  );
+}
+
 export default function CustomerHomeScreen() {
   const { user } = useAuthStore();
   const { openModal } = useUiStore();
-  const { data: stores = [], isLoading } = useStores();
+  const { cachedStores, setCachedStores } = useStoresCacheStore();
+  const { data: fetchedStores, isLoading } = useStores();
   const { data: promos = [] } = usePublicPromos();
   const [search, setSearch] = useState("");
   const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  // Stale-while-revalidate pattern: use cached stores if fresh ones are loading
+  const stores = (fetchedStores && fetchedStores.length > 0) ? fetchedStores : cachedStores;
+  const isStoresLoading = isLoading && stores.length === 0;
+
+  useEffect(() => {
+    if (fetchedStores && fetchedStores.length > 0) {
+      setCachedStores(fetchedStores);
+    }
+  }, [fetchedStores]);
+
+  if (isStoresLoading) {
+    return <HomeSkeleton />;
+  }
 
   // Setup swipable banners (fallback to beautiful default banner if none defined)
   const defaultBanner = {
@@ -205,7 +310,7 @@ export default function CustomerHomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {isLoading ? (
+      {isStoresLoading ? (
         <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 24 }} />
       ) : finalFeatured.length === 0 ? (
         <Text style={styles.emptyText}>No featured stores available.</Text>
@@ -276,7 +381,7 @@ export default function CustomerHomeScreen() {
         <Text style={styles.sectionTitle}>Nearby Stores</Text>
       </View>
 
-      {isLoading ? (
+      {isStoresLoading ? (
         <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 24 }} />
       ) : finalListing.length === 0 ? (
         <Text style={styles.emptyText}>No stores available nearby.</Text>
@@ -558,5 +663,98 @@ const styles = StyleSheet.create({
     color: "#E53935",
     fontSize: 12,
     fontWeight: "700",
+  },
+  skeletonContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  skeletonHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  skeletonGreeting: {
+    width: 120,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#E4E4E7",
+  },
+  skeletonName: {
+    width: 160,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#E4E4E7",
+    marginTop: 6,
+  },
+  skeletonBell: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#E4E4E7",
+  },
+  skeletonSearch: {
+    width: "100%",
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: "#E4E4E7",
+    marginBottom: 24,
+  },
+  skeletonEmergencyBanner: {
+    width: "100%",
+    height: 120,
+    borderRadius: 14,
+    backgroundColor: "#E4E4E7",
+    marginBottom: 24,
+  },
+  skeletonSectionHeader: {
+    marginVertical: 12,
+  },
+  skeletonSectionTitle: {
+    width: 150,
+    height: 20,
+    borderRadius: 8,
+    backgroundColor: "#E4E4E7",
+  },
+  skeletonHorizontalRow: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 24,
+  },
+  skeletonStoreCardHorizontal: {
+    width: screenWidth * 0.65,
+    height: 160,
+    borderRadius: 16,
+    backgroundColor: "#E4E4E7",
+  },
+  skeletonServicesRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
+  skeletonServiceCol: {
+    alignItems: "center",
+  },
+  skeletonServiceCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#E4E4E7",
+  },
+  skeletonServiceText: {
+    width: 50,
+    height: 10,
+    borderRadius: 4,
+    backgroundColor: "#E4E4E7",
+    marginTop: 8,
+  },
+  skeletonStoreCardVertical: {
+    width: "100%",
+    height: 100,
+    borderRadius: 16,
+    backgroundColor: "#E4E4E7",
+    marginBottom: 16,
   },
 });

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Image, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, TextInput, Modal } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { usePets, useStores, useCreateBookingMutation } from "../../services/queries/hooks";
+import { usePets, useStores, useCreateBookingMutation, useUpdatePetMutation } from "../../services/queries/hooks";
 import { COLORS } from "../../theme/colors";
 
 const DEFAULT_DOCTORS = [
@@ -21,11 +21,27 @@ const SYMPTOM_OPTIONS = [
   "Other (Describe below)"
 ];
 
+// Helper to generate next 5 upcoming dates starting from today (no previous dates)
+const getUpcomingDates = () => {
+  const dates = [];
+  const now = new Date();
+  for (let i = 0; i < 5; i++) {
+    const d = new Date();
+    d.setDate(now.getDate() + i);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    dates.push(`${year}-${month}-${day}`);
+  }
+  return dates;
+};
+
 export default function BookAppointmentScreen() {
   const params = useLocalSearchParams();
   const { data: pets = [], isLoading: loadingPets } = usePets();
   const { data: stores = [], isLoading: loadingStores } = useStores();
   const createBookingMutation = useCreateBookingMutation();
+  const updatePetMutation = useUpdatePetMutation();
 
   const routeClinicId = params.clinicId as string;
 
@@ -40,8 +56,41 @@ export default function BookAppointmentScreen() {
 
   // Doctor list based on chosen clinic
   const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
-  const [selectedDate, setSelectedDate] = useState("2026-06-17");
+
+  // Dynamic schedule dates
+  const upcomingDates = getUpcomingDates();
+  const [selectedDate, setSelectedDate] = useState(upcomingDates[0]);
   const [selectedSlot, setSelectedSlot] = useState("10:00 AM");
+
+  // Pet Details Modal & Editing State
+  const [detailPet, setDetailPet] = useState<any>(null);
+  const [isEditingPet, setIsEditingPet] = useState(false);
+  const [editPetName, setEditPetName] = useState("");
+  const [editPetBreed, setEditPetBreed] = useState("");
+  const [editPetAge, setEditPetAge] = useState("");
+  const [editPetWeight, setEditPetWeight] = useState("");
+  const [editPetGender, setEditPetGender] = useState("Male");
+  const [editPetVaccinated, setEditPetVaccinated] = useState(true);
+  const [editPetPhoto, setEditPetPhoto] = useState("");
+
+  // Premium Custom Alert State
+  const [customAlert, setCustomAlert] = useState<{
+    title: string;
+    message: string;
+    buttons: { text: string; onPress?: () => void; style?: "default" | "destructive" }[];
+  } | null>(null);
+
+  const showAlert = (
+    title: string,
+    message: string,
+    buttons?: { text: string; onPress?: () => void; style?: "default" | "destructive" }[]
+  ) => {
+    setCustomAlert({
+      title,
+      message,
+      buttons: buttons || [{ text: "OK", onPress: () => setCustomAlert(null), style: "default" }]
+    });
+  };
 
   useEffect(() => {
     if (pets.length > 0 && !selectedPet) {
@@ -80,21 +129,79 @@ export default function BookAppointmentScreen() {
     }
   }, [selectedClinic]);
 
+  const openPetDetailModal = (pet: any) => {
+    setDetailPet(pet);
+    setIsEditingPet(false);
+    setEditPetName(pet.name || "");
+    setEditPetBreed(pet.breed || "");
+    setEditPetAge(pet.age || "");
+    setEditPetWeight(pet.weight || "");
+    setEditPetGender(pet.gender || "Male");
+    setEditPetVaccinated(pet.vaccinated ?? true);
+    setEditPetPhoto(pet.photo || pet.profileImage || "");
+  };
+
+  const handleSavePet = () => {
+    if (!editPetName || !editPetBreed || !editPetAge || !editPetWeight) {
+      showAlert("Required fields", "Please fill in Name, Breed, Age and Weight.");
+      return;
+    }
+
+    updatePetMutation.mutate({
+      petId: detailPet.id || detailPet._id,
+      payload: {
+        name: editPetName,
+        breed: editPetBreed,
+        age: editPetAge,
+        weight: editPetWeight,
+        gender: editPetGender,
+        vaccinated: editPetVaccinated,
+        photo: editPetPhoto,
+        profileImage: editPetPhoto,
+      } as any
+    }, {
+      onSuccess: (res: any) => {
+        const updatedPet = res.data?.pet || {
+          ...detailPet,
+          name: editPetName,
+          breed: editPetBreed,
+          age: editPetAge,
+          weight: editPetWeight,
+          gender: editPetGender,
+          vaccinated: editPetVaccinated,
+          photo: editPetPhoto,
+        };
+
+        // Sync with stepper state if it's the active patient
+        if (selectedPet && (selectedPet.id || selectedPet._id) === (detailPet.id || detailPet._id)) {
+          setSelectedPet(updatedPet);
+        }
+
+        setDetailPet(updatedPet);
+        setIsEditingPet(false);
+        showAlert("Success", "Pet profile updated successfully.");
+      },
+      onError: (err: any) => {
+        showAlert("Failed", err?.response?.data?.message || "Failed to update pet profile.");
+      }
+    });
+  };
+
   const handleNext = () => {
     if (step === 1 && !selectedPet) {
-      Alert.alert("Required", "Please select a pet patient.");
+      showAlert("Required", "Please select a pet patient.");
       return;
     }
     if (step === 2 && !selectedSymptom) {
-      Alert.alert("Required", "Please select or describe a symptom.");
+      showAlert("Required", "Please select or describe a symptom.");
       return;
     }
     if (step === 3 && !selectedDoctor) {
-      Alert.alert("Required", "Please choose a veterinary doctor.");
+      showAlert("Required", "Please choose a veterinary doctor.");
       return;
     }
     if (step === 4 && !selectedSlot) {
-      Alert.alert("Required", "Please select a time slot.");
+      showAlert("Required", "Please select a time slot.");
       return;
     }
 
@@ -116,7 +223,7 @@ export default function BookAppointmentScreen() {
       gender: selectedPet.gender || "Male",
       image: selectedPet.photo || selectedPet.profileImage || "",
       petType: selectedPet.petType || "Dog",
-      vaccinated: true,
+      vaccinated: selectedPet.vaccinated ?? true,
       medicalConditions: `Symptoms: ${selectedSymptom}. Description: ${symptomDescription || "None"}`,
     };
 
@@ -139,7 +246,7 @@ export default function BookAppointmentScreen() {
 
     createBookingMutation.mutate(bookingPayload, {
       onSuccess: (res: any) => {
-        Alert.alert(
+        showAlert(
           "Appointment Scheduled",
           "Your veterinary appointment has been successfully booked.",
           [
@@ -153,7 +260,7 @@ export default function BookAppointmentScreen() {
         );
       },
       onError: (err: any) => {
-        Alert.alert("Booking Failed", err?.response?.data?.message || "Failed to schedule appointment.");
+        showAlert("Booking Failed", err?.response?.data?.message || "Failed to schedule appointment.");
       },
     });
   };
@@ -181,29 +288,70 @@ export default function BookAppointmentScreen() {
               <View style={styles.emptyContainer}>
                 <Ionicons name="paw-outline" size={40} color={COLORS.emergencyBorder} />
                 <Text style={styles.emptyText}>No registered pets found.</Text>
-                <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/Emergency/pets" as any)}>
+                <TouchableOpacity 
+                  style={styles.emptyBtn} 
+                  onPress={() => router.push({
+                    pathname: "/Emergency/pets" as any,
+                    params: { fromBooking: "true", clinicId: routeClinicId }
+                  })}
+                >
                   <Text style={styles.emptyBtnText}>Register Pet First</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              pets.map((pet: any) => {
-                const isSelected = selectedPet && (selectedPet.id || selectedPet._id) === (pet.id || pet._id);
-                return (
-                  <TouchableOpacity
-                    key={pet.id || pet._id}
-                    style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
-                    onPress={() => setSelectedPet(pet)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="paw" size={20} color={isSelected ? COLORS.emergencyPrimaryOrange : COLORS.emergencyTextMuted} />
-                    <View style={{ marginLeft: 14, flex: 1 }}>
-                      <Text style={styles.cardTitle}>{pet.name}</Text>
-                      <Text style={styles.cardSub}>{pet.breed} • {pet.age}</Text>
+              <View>
+                {pets.map((pet: any) => {
+                  const isSelected = selectedPet && (selectedPet.id || selectedPet._id) === (pet.id || pet._id);
+                  const isVaccinated = pet.vaccinated;
+                  return (
+                    <View
+                      key={pet.id || pet._id}
+                      style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
+                    >
+                      <TouchableOpacity
+                        style={styles.selectionCardTouch}
+                        onPress={() => setSelectedPet(pet)}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.petAvatarWrapper}>
+                          {pet.photo || pet.profileImage ? (
+                            <Image source={{ uri: pet.photo || pet.profileImage }} style={styles.petAvatarImage} />
+                          ) : (
+                            <Ionicons name={pet.petType === "Cat" ? "logo-github" : "paw"} size={20} color={isSelected ? COLORS.emergencyPrimaryOrange : COLORS.emergencyTextMuted} />
+                          )}
+                        </View>
+                        <View style={{ marginLeft: 14, flex: 1 }}>
+                          <Text style={styles.cardTitle}>{pet.name}</Text>
+                          <Text style={styles.cardSub}>{pet.breed} • {pet.age} • {pet.weight}</Text>
+                          <Text style={styles.cardInfoMini}>
+                            Last Visit: 12 May 2026 • Vaccine: {isVaccinated ? "12 Nov 2026" : "OVERDUE 🚨"}
+                          </Text>
+                        </View>
+                        {isSelected && <Ionicons name="checkmark-circle" size={20} color={COLORS.emergencyPrimaryOrange} style={{ marginRight: 8 }} />}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={styles.eyeBtn}
+                        onPress={() => openPetDetailModal(pet)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="eye-outline" size={20} color={COLORS.emergencyPrimaryOrange} />
+                      </TouchableOpacity>
                     </View>
-                    {isSelected && <Ionicons name="checkmark-circle" size={20} color={COLORS.emergencyPrimaryOrange} />}
-                  </TouchableOpacity>
-                );
-              })
+                  );
+                })}
+
+                <TouchableOpacity 
+                  style={styles.addNewPetBtn} 
+                  onPress={() => router.push({
+                    pathname: "/Emergency/pets" as any,
+                    params: { fromBooking: "true", clinicId: routeClinicId }
+                  })}
+                >
+                  <Ionicons name="add-circle-outline" size={18} color={COLORS.emergencyPrimaryOrange} />
+                  <Text style={styles.addNewPetBtnText}>Add New Pet Patient</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -250,21 +398,23 @@ export default function BookAppointmentScreen() {
         {step === 3 && (
           <View>
             <Text style={styles.stepTitle}>Select Doctor of {selectedClinic?.name || "Clinic"}</Text>
-            {doctorsList.map((doc) => {
+            {doctorsList.map((doc: any) => {
               const isSelected = selectedDoctor && selectedDoctor.id === doc.id;
               return (
                 <TouchableOpacity
                   key={doc.id}
-                  style={[styles.selectionCard, isSelected && styles.selectionCardActive]}
+                  style={[styles.selectionCard, isSelected && styles.selectionCardActive, { paddingRight: 16 }]}
                   onPress={() => setSelectedDoctor(doc)}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name={doc.icon as any} size={20} color={isSelected ? COLORS.emergencyPrimaryOrange : COLORS.emergencyTextMuted} />
-                  <View style={{ marginLeft: 14, flex: 1 }}>
-                    <Text style={styles.cardTitle}>{doc.name}</Text>
-                    <Text style={styles.cardSub}>{doc.role} • Fee: ₹{doc.fee}</Text>
+                  <View style={[styles.selectionCardTouch, { paddingLeft: 0, paddingVertical: 10 }]}>
+                    <Ionicons name={doc.icon as any} size={20} color={isSelected ? COLORS.emergencyPrimaryOrange : COLORS.emergencyTextMuted} />
+                    <View style={{ marginLeft: 14, flex: 1 }}>
+                      <Text style={styles.cardTitle}>{doc.name}</Text>
+                      <Text style={styles.cardSub}>{doc.role} • Fee: ₹{doc.fee}</Text>
+                    </View>
+                    {isSelected && <Ionicons name="checkmark-circle" size={20} color={COLORS.emergencyPrimaryOrange} />}
                   </View>
-                  {isSelected && <Ionicons name="checkmark-circle" size={20} color={COLORS.emergencyPrimaryOrange} />}
                 </TouchableOpacity>
               );
             })}
@@ -276,7 +426,7 @@ export default function BookAppointmentScreen() {
           <View>
             <Text style={styles.stepTitle}>Choose Schedule Date</Text>
             <View style={styles.datesGrid}>
-              {["2026-06-17", "2026-06-18", "2026-06-19", "2026-06-20"].map((date) => {
+              {upcomingDates.map((date) => {
                 const isSelected = selectedDate === date;
                 const dateParts = date.split("-");
                 return (
@@ -371,6 +521,274 @@ export default function BookAppointmentScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* 🐾 Pet Details & Edit Modal */}
+      <Modal
+        visible={!!detailPet}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setDetailPet(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {isEditingPet ? `Edit ${detailPet?.name}` : `${detailPet?.name}'s Records`}
+              </Text>
+              <TouchableOpacity onPress={() => setDetailPet(null)}>
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+              {!isEditingPet ? (
+                /* VIEW MODE */
+                <View style={styles.viewModeContainer}>
+                  <View style={styles.modalImageContainer}>
+                    {detailPet?.photo || detailPet?.profileImage ? (
+                      <Image source={{ uri: detailPet.photo || detailPet.profileImage }} style={styles.modalPetImage} />
+                    ) : (
+                      <View style={styles.modalPetPlaceholder}>
+                        <Ionicons name="paw" size={48} color={COLORS.emergencyPrimaryOrange} />
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.detailGrid}>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Name</Text>
+                      <Text style={styles.detailValue}>{detailPet?.name}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Type</Text>
+                      <Text style={styles.detailValue}>{detailPet?.petType || "Dog"}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Breed</Text>
+                      <Text style={styles.detailValue}>{detailPet?.breed || "N/A"}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Age</Text>
+                      <Text style={styles.detailValue}>{detailPet?.age || "N/A"}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Weight</Text>
+                      <Text style={styles.detailValue}>{detailPet?.weight || "N/A"}</Text>
+                    </View>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Gender</Text>
+                      <Text style={styles.detailValue}>{detailPet?.gender || "N/A"}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.recordsCard}>
+                    <View style={styles.recordRow}>
+                      <Ionicons name="calendar-outline" size={18} color={COLORS.emergencyPrimaryOrange} />
+                      <Text style={styles.recordLabel}>Last Visit:</Text>
+                      <Text style={styles.recordValue}>12 May 2026</Text>
+                    </View>
+                    <View style={styles.recordRow}>
+                      <Ionicons name="shield-checkmark-outline" size={18} color={COLORS.emergencyPrimaryOrange} />
+                      <Text style={styles.recordLabel}>Next Vaccine:</Text>
+                      <Text style={[styles.recordValue, detailPet?.vaccinated ? styles.textSuccess : styles.textAlert]}>
+                        {detailPet?.vaccinated ? "12 Nov 2026" : "OVERDUE 🚨"}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity 
+                    style={styles.editBtnLarge} 
+                    onPress={() => setIsEditingPet(true)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="create-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.editBtnLargeText}>Edit Pet Details</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                /* EDIT MODE */
+                <View style={styles.editModeContainer}>
+                  <View style={styles.editPhotoSection}>
+                    {editPetPhoto ? (
+                      <Image source={{ uri: editPetPhoto }} style={styles.modalPetImageSmall} />
+                    ) : (
+                      <View style={styles.modalPetPlaceholderSmall}>
+                        <Ionicons name="paw" size={24} color={COLORS.emergencyTextMuted} />
+                      </View>
+                    )}
+                    <TextInput
+                      style={[styles.editInput, { flex: 1, marginTop: 0 }]}
+                      placeholder="Image URL"
+                      placeholderTextColor={COLORS.emergencyTextMuted}
+                      value={editPetPhoto}
+                      onChangeText={setEditPetPhoto}
+                    />
+                  </View>
+
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>Pet Name</Text>
+                    <TextInput
+                      style={styles.editInput}
+                      value={editPetName}
+                      onChangeText={setEditPetName}
+                      placeholder="e.g. Max"
+                      placeholderTextColor={COLORS.emergencyTextMuted}
+                    />
+                  </View>
+
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>Breed</Text>
+                    <TextInput
+                      style={styles.editInput}
+                      value={editPetBreed}
+                      onChangeText={setEditPetBreed}
+                      placeholder="e.g. Beagle"
+                      placeholderTextColor={COLORS.emergencyTextMuted}
+                    />
+                  </View>
+
+                  <View style={styles.editRow}>
+                    <View style={[styles.editField, { flex: 1 }]}>
+                      <Text style={styles.editLabel}>Age</Text>
+                      <TextInput
+                        style={styles.editInput}
+                        value={editPetAge}
+                        onChangeText={setEditPetAge}
+                        placeholder="e.g. 2 yrs"
+                        placeholderTextColor={COLORS.emergencyTextMuted}
+                      />
+                    </View>
+                    <View style={[styles.editField, { flex: 1 }]}>
+                      <Text style={styles.editLabel}>Weight</Text>
+                      <TextInput
+                        style={styles.editInput}
+                        value={editPetWeight}
+                        onChangeText={setEditPetWeight}
+                        placeholder="e.g. 10 kg"
+                        placeholderTextColor={COLORS.emergencyTextMuted}
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>Gender</Text>
+                    <View style={styles.genderRow}>
+                      {["Male", "Female"].map((g) => (
+                        <TouchableOpacity
+                          key={g}
+                          style={[styles.genderChoice, editPetGender === g && styles.genderChoiceActive]}
+                          onPress={() => setEditPetGender(g)}
+                        >
+                          <Text style={[styles.genderChoiceText, editPetGender === g && styles.genderChoiceTextActive]}>
+                            {g}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.editField}>
+                    <Text style={styles.editLabel}>Vaccination Status</Text>
+                    <View style={styles.genderRow}>
+                      <TouchableOpacity
+                        style={[styles.genderChoice, editPetVaccinated && styles.genderChoiceActive]}
+                        onPress={() => setEditPetVaccinated(true)}
+                      >
+                        <Text style={[styles.genderChoiceText, editPetVaccinated && styles.genderChoiceTextActive]}>
+                          Vaccinated
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.genderChoice, !editPetVaccinated && styles.genderChoiceActive]}
+                        onPress={() => setEditPetVaccinated(false)}
+                      >
+                        <Text style={[styles.genderChoiceText, !editPetVaccinated && styles.genderChoiceTextActive]}>
+                          Not Vaccinated
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.editActions}>
+                    <TouchableOpacity 
+                      style={styles.cancelBtn} 
+                      onPress={() => setIsEditingPet(false)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.cancelBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.saveBtn} 
+                      onPress={handleSavePet}
+                      disabled={updatePetMutation.isPending}
+                      activeOpacity={0.8}
+                    >
+                      {updatePetMutation.isPending ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.saveBtnText}>Save Changes</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🚨 Premium Custom Alert Modal */}
+      <Modal
+        visible={!!customAlert}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setCustomAlert(null)}
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContainer}>
+            <View style={styles.alertHeader}>
+              <Ionicons 
+                name={
+                  customAlert?.title.toLowerCase().includes("fail") || 
+                  customAlert?.title.toLowerCase().includes("required") 
+                    ? "alert-circle" 
+                    : "checkmark-circle"
+                } 
+                size={40} 
+                color={
+                  customAlert?.title.toLowerCase().includes("fail") || 
+                  customAlert?.title.toLowerCase().includes("required") 
+                    ? COLORS.emergencyRed 
+                    : COLORS.emergencyPrimaryOrange
+                } 
+              />
+              <Text style={styles.alertTitle}>{customAlert?.title}</Text>
+            </View>
+            
+            <Text style={styles.alertMessage}>{customAlert?.message}</Text>
+            
+            <View style={styles.alertButtonsRow}>
+              {customAlert?.buttons.map((btn, idx) => (
+                <TouchableOpacity
+                  key={`alert-btn-${idx}`}
+                  style={[
+                    styles.alertButton,
+                    btn.style === "destructive" ? styles.alertButtonDestructive : styles.alertButtonPrimary
+                  ]}
+                  onPress={() => {
+                    setCustomAlert(null);
+                    if (btn.onPress) btn.onPress();
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.alertButtonText}>{btn.text}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -437,8 +855,15 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: COLORS.emergencyBorder,
-    padding: 16,
+    paddingRight: 10,
     marginBottom: 12,
+  },
+  selectionCardTouch: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    paddingVertical: 14,
+    paddingLeft: 16,
   },
   selectionCardActive: {
     borderColor: COLORS.emergencyPrimaryOrange,
@@ -453,6 +878,48 @@ const styles = StyleSheet.create({
     color: COLORS.emergencyTextMuted,
     fontSize: 11,
     marginTop: 2,
+  },
+  cardInfoMini: {
+    color: COLORS.emergencyPrimaryOrange,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+  petAvatarWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 107, 53, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  petAvatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  eyeBtn: {
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addNewPetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: COLORS.emergencySurface,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: COLORS.emergencyBorder,
+    borderRadius: 14,
+    padding: 14,
+    marginTop: 8,
+    gap: 8,
+  },
+  addNewPetBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
   symptomsContainer: {
     flexDirection: "row",
@@ -613,5 +1080,308 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "800",
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: COLORS.emergencyBg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "85%",
+    borderWidth: 1,
+    borderColor: COLORS.emergencyBorder,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.emergencyBorder,
+  },
+  modalTitle: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  modalScrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  },
+  viewModeContainer: {
+    alignItems: "center",
+  },
+  modalImageContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: COLORS.emergencySurface,
+    borderWidth: 2,
+    borderColor: COLORS.emergencyPrimaryOrange,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  modalPetImage: {
+    width: "100%",
+    height: "100%",
+  },
+  modalPetPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  detailGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    width: "100%",
+    backgroundColor: COLORS.emergencySurface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.emergencyBorder,
+    padding: 16,
+    marginBottom: 16,
+    gap: 12,
+  },
+  detailItem: {
+    width: "46%",
+    marginBottom: 4,
+  },
+  detailLabel: {
+    color: COLORS.emergencyTextMuted,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  detailValue: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 4,
+  },
+  recordsCard: {
+    width: "100%",
+    backgroundColor: COLORS.emergencySurface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.emergencyBorder,
+    padding: 16,
+    marginBottom: 24,
+    gap: 12,
+  },
+  recordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  recordLabel: {
+    color: COLORS.emergencyTextMuted,
+    fontSize: 12,
+    fontWeight: "600",
+    flex: 1,
+  },
+  recordValue: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  textSuccess: {
+    color: COLORS.emergencySuccess,
+  },
+  textAlert: {
+    color: COLORS.emergencyAlertYellow,
+  },
+  editBtnLarge: {
+    flexDirection: "row",
+    backgroundColor: COLORS.emergencyPrimaryOrange,
+    width: "100%",
+    height: 48,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  editBtnLargeText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  // Edit Mode Styles
+  editModeContainer: {
+    width: "100%",
+  },
+  editPhotoSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 20,
+  },
+  modalPetImageSmall: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+  },
+  modalPetPlaceholderSmall: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: COLORS.emergencySurface,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.emergencyBorder,
+  },
+  editField: {
+    marginBottom: 16,
+  },
+  editLabel: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  editInput: {
+    color: "#FFFFFF",
+    backgroundColor: COLORS.emergencySurface,
+    borderColor: COLORS.emergencyBorder,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    height: 46,
+    paddingHorizontal: 14,
+    fontSize: 13,
+  },
+  editRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  genderRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  genderChoice: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: COLORS.emergencyBorder,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.emergencySurface,
+  },
+  genderChoiceActive: {
+    borderColor: COLORS.emergencyPrimaryOrange,
+    backgroundColor: "rgba(255, 107, 53, 0.1)",
+  },
+  genderChoiceText: {
+    color: COLORS.emergencyTextMuted,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  genderChoiceTextActive: {
+    color: COLORS.emergencyPrimaryOrange,
+    fontWeight: "800",
+  },
+  editActions: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 10,
+  },
+  cancelBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.emergencyBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cancelBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  saveBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: COLORS.emergencyPrimaryOrange,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  saveBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  // Custom Alert Styles
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  alertContainer: {
+    backgroundColor: COLORS.emergencySurface,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: COLORS.emergencyBorder,
+    width: "100%",
+    maxWidth: 320,
+    padding: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  alertHeader: {
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  alertTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+    marginTop: 12,
+    textAlign: "center",
+  },
+  alertMessage: {
+    color: COLORS.emergencyTextMuted,
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  alertButtonsRow: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  alertButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  alertButtonPrimary: {
+    backgroundColor: COLORS.emergencyPrimaryOrange,
+  },
+  alertButtonDestructive: {
+    backgroundColor: COLORS.emergencyRed,
+  },
+  alertButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+    textTransform: "uppercase",
   },
 });

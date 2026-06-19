@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, Alert, TextInput } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Image, TextInput } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import { usePets, useCreatePetMutation, useDeletePetMutation } from "../../services/queries/hooks";
@@ -10,14 +11,15 @@ import { COLORS } from "../../theme/colors";
 import { CustomButton } from "../../components/common/CustomButton";
 
 export default function RedesignedPetsScreen() {
+  const params = useLocalSearchParams();
   const { data: pets = [], isLoading } = usePets();
   const createPetMutation = useCreatePetMutation();
   const deletePetMutation = useDeletePetMutation();
   
   const { petDraft, setPetDraft, clearPetDraft } = usePetStore();
-  const { showToast } = useUiStore();
+  const { showToast, showAlert } = useUiStore();
   
-  const [isAdding, setIsAdding] = useState(false);
+  const [isAdding, setIsAdding] = useState(params.fromBooking === "true");
   const [uploading, setUploading] = useState(false);
 
   // Draft info
@@ -91,7 +93,14 @@ export default function RedesignedPetsScreen() {
         onSuccess: () => {
           showToast(`${name} added successfully!`, "success");
           clearPetDraft();
-          setIsAdding(false);
+          if (params.fromBooking === "true") {
+            router.replace({
+              pathname: "/Emergency/book-appointment" as any,
+              params: { clinicId: params.clinicId }
+            });
+          } else {
+            setIsAdding(false);
+          }
         },
         onError: (err: any) => {
           showToast(err?.response?.data?.message || "Failed to add pet", "error");
@@ -101,7 +110,7 @@ export default function RedesignedPetsScreen() {
   };
 
   const handleDeletePet = (id: string, petName: string) => {
-    Alert.alert("Remove Pet", `Are you sure you want to remove ${petName}?`, [
+    showAlert("Remove Pet", `Are you sure you want to remove ${petName}?`, [
       { text: "Cancel", style: "cancel" },
       {
         text: "Remove",

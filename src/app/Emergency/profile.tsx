@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch, Linking } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Linking } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -7,14 +7,16 @@ import { useAuthStore } from "../../store/authStore";
 import { usePets } from "../../services/queries/hooks";
 import { authApi } from "../../services/api/authApi";
 import { COLORS } from "../../theme/colors";
+import { useUiStore } from "../../store/uiStore";
 
 export default function RedesignedProfileScreen() {
   const { user, clearAuth } = useAuthStore();
   const { data: pets = [] } = usePets();
+  const { showAlert } = useUiStore();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const handleLogout = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out of PawConnect?", [
+    showAlert("Sign Out", "Are you sure you want to sign out of PawConnect?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Sign Out",
@@ -35,12 +37,12 @@ export default function RedesignedProfileScreen() {
 
   const handleCallSupport = () => {
     Linking.openURL("tel:+919876543210").catch(() => {
-      Alert.alert("Support", "Call Support at +91 98765 43210");
+      showAlert("Support", "Call Support at +91 98765 43210");
     });
   };
 
   const handleAddEmergencyContact = () => {
-    Alert.alert("Emergency Contact", "Primary Vet Emergency hotline (+91 108) is saved as default contact.");
+    showAlert("Emergency Contact", "Primary Vet Emergency hotline (+91 108) is saved as default contact.");
   };
 
   return (
@@ -72,7 +74,7 @@ export default function RedesignedProfileScreen() {
           <Text style={styles.statLabel}>Registered Pets</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.statCard} onPress={() => Alert.alert("Health Documents", "You have 13 active medical records and vaccine files.")}>
+        <TouchableOpacity style={styles.statCard} onPress={() => showAlert("Health Documents", "You have 13 active medical records and vaccine files.")}>
           <Text style={styles.statVal}>13</Text>
           <Text style={styles.statLabel}>Health Docs</Text>
         </TouchableOpacity>
@@ -92,7 +94,7 @@ export default function RedesignedProfileScreen() {
         </TouchableOpacity>
 
         {/* Health Records */}
-        <TouchableOpacity style={styles.menuItem} onPress={() => Alert.alert("Medical Records", "13 health documents active.")}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => showAlert("Medical Records", "13 health documents active.")}>
           <View style={styles.menuItemLeft}>
             <View style={[styles.menuIconBg, { backgroundColor: "rgba(16, 185, 129, 0.1)" }]}>
               <Ionicons name="document-text-outline" size={20} color={COLORS.emergencySuccess} />
