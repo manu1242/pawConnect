@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "PawConnect",
-    "slug": "PawConnect",
+    "slug": "PawConnectApp",
     "version": "1.05.4",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
