@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "PawConnect",
-    "slug": "PawConnectApp",
+    "slug": "PawConnect",
     "version": "1.05.4",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
@@ -75,10 +75,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "f26d0c22-20da-4bcc-a0d9-65a54533888d"
-      }
+      "router": {}
     }
   }
 }
