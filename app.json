@@ -9,7 +9,13 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "PawConnect uses your location to find nearby pet services.",
+        "NSCameraUsageDescription": "PawConnect needs camera access to upload pet images.",
+        "NSPhotoLibraryUsageDescription": "PawConnect needs access to your photos to upload pet images.",
+        "NSMicrophoneUsageDescription": "PawConnect uses the microphone for audio and voice features."
+      }
     },
     "android": {
       "package": "com.pawconnect.app",
@@ -26,7 +32,21 @@
         {
           "action": "VIEW",
           "autoVerify": true,
-         
+          "data": [
+            {
+              "scheme": "pawconnectapp",
+              "host": "reset-password"
+            },
+            {
+              "scheme": "https",
+              "host": "pawconnectbackend.onrender.com",
+              "pathPrefix": "/api/v1/auth/reset-password"
+            }
+          ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
           "data": [
             {
               "scheme": "pawconnectapp",
@@ -39,6 +59,12 @@
             }
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
@@ -75,7 +101,16 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "eas": {
+        "projectId": "1c49bcad-3aa2-492f-96be-ab67b02de5f0"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1c49bcad-3aa2-492f-96be-ab67b02de5f0"
     }
   }
 }

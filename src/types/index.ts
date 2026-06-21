@@ -217,21 +217,75 @@ export interface Booking {
 
 export interface Review {
   id: string;
+  _id?: string;
   storeId: string;
-  userId: string;
-  userName: string;
+  userId: any; // Can be string or populated { _id, fullName, profileImage }
+  userName?: string; // Fallback
   rating: number;
-  comment: string;
+  comment?: string; // Fallback
+  reviewText?: string;
+  photos?: string[];
   createdAt: string;
 }
 
-export interface Feedback {
-  type: "bug" | "suggestion" | "other";
-  message: string;
+export interface Product {
+  _id: string;
+  id?: string;
+  storeId: string;
+  name: string;
+  category: "toys" | "food" | "medicines" | "accessories" | string;
+  price: number;
+  stock: number;
+  description?: string;
+  images?: string[];
+  active?: boolean;
+}
+
+export interface Doctor {
+  _id: string;
+  name: string;
+  specialty: string;
+  experience: string;
+  consultationFee?: number;
+  timings?: string;
+  image?: string;
+  active?: boolean;
+}
+
+export interface GroomingPackage {
+  _id: string;
+  packageName: string;
+  duration: number;
+  price: number;
+  description?: string;
+  image?: string;
+}
+
+export interface BoardingPackage {
+  _id: string;
+  packageName: string;
+  capacity?: number;
+  price: number;
+  description?: string;
+}
+
+export interface TrainingProgram {
+  _id: string;
+  programName: string;
+  trainerName?: string;
+  duration?: string;
+  price: number;
+  description?: string;
+  image?: string;
 }
 
 export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data: T;
+}
+
+export interface Feedback {
+  type: "bug" | "suggestion" | "other";
+  message: string;
 }

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Dimensions, Animated } from "react-native";
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Modal, Dimensions, Animated, Linking } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useStoreDetails } from "../../../services/queries/hooks";
+import { useStoreDetails, useStoreProducts, useStoreReviews } from "../../../services/queries/hooks";
 import { useBookingStore } from "../../../store/bookingStore";
 import { useUiStore } from "../../../store/uiStore";
 import { COLORS } from "../../../theme/colors";
@@ -195,6 +195,8 @@ const cleanServiceDescription = (desc: string) => {
 export default function StoreDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: store, isLoading } = useStoreDetails(id as string);
+  const { data: storeProducts = [] } = useStoreProducts(id as string);
+  const { data: storeReviews = [] } = useStoreReviews(id as string);
   const { setBookingDraft } = useBookingStore();
   const { openModal } = useUiStore();
 
@@ -463,6 +465,45 @@ export default function StoreDetailsScreen() {
           </View>
         </View>
 
+        {/* Quick Contacts and Directions Buttons Row */}
+        <View style={styles.actionButtonsRow}>
+          <TouchableOpacity
+            style={styles.actionBtnOutline}
+            onPress={() => {
+              if (store.phone) {
+                Linking.openURL(`tel:${store.phone}`);
+              } else {
+                alert("Phone number not available");
+              }
+            }}
+          >
+            <Ionicons name="call-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.actionBtnText}>Call Store</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtnOutline}
+            onPress={() => {
+              const lat = store.latitude || 12.9716;
+              const lon = store.longitude || 77.5946;
+              Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`);
+            }}
+          >
+            <Ionicons name="navigate-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.actionBtnText}>Directions</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionBtnOutline}
+            onPress={() => {
+              handleTabChange("Services");
+            }}
+          >
+            <Ionicons name="calendar-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.actionBtnText}>Services</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Horizontal Scrollable Tabs */}
         <ScrollView
           horizontal
@@ -470,7 +511,7 @@ export default function StoreDetailsScreen() {
           style={styles.tabsContainer}
           contentContainerStyle={styles.tabsContentContainer}
         >
-          {["About", "Services", "Gallery", "Business Info", "Hours"].map((tab) => {
+          {["About", "Services", "Products", "Reviews", "Gallery", "Business Info", "Hours"].map((tab) => {
             const isActive = activeTab === tab;
             return (
               <TouchableOpacity
@@ -566,6 +607,16 @@ export default function StoreDetailsScreen() {
                   </View>
                 </View>
               )}
+
+              {/* Location Map Section */}
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Location Map</Text>
+                <View style={styles.mapPlaceholder}>
+                  <Ionicons name="map" size={32} color={COLORS.primary} style={{ marginBottom: 6 }} />
+                  <Text style={styles.mapText}>Coordinates: {store.latitude || 12.9716}, {store.longitude || 77.5946}</Text>
+                  <Text style={styles.mapSubText}>Tap "Directions" above to navigate using GPS</Text>
+                </View>
+              </View>
             </View>
           )}
 
@@ -613,6 +664,89 @@ export default function StoreDetailsScreen() {
                   })
                 ) : (
                   <Text style={styles.noDataText}>No services registered for this store.</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {activeTab === "Products" && (
+            <View style={styles.tabContentArea}>
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Products Available</Text>
+                <Text style={styles.subTitleInfo}>Browse pet food, toys, medicines, and accessories in stock</Text>
+                {storeProducts.length > 0 ? (
+                  <View style={styles.productsGrid}>
+                    {storeProducts.map((product: any) => {
+                      const price = product.price || 0;
+                      const image = product.images?.[0] || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&q=80";
+                      return (
+                        <View key={`product-${product._id || product.id}`} style={styles.productCard}>
+                          <Image source={{ uri: image }} style={styles.productImage} />
+                          <View style={styles.productDetails}>
+                            <Text style={styles.productBadge}>{product.category}</Text>
+                            <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+                            <Text style={styles.productPrice}>₹{price}</Text>
+                            <Text style={styles.productStock}>
+                              {product.stock > 0 ? `In Stock (${product.stock})` : "Out of Stock"}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Text style={styles.noDataText}>No products registered for this store.</Text>
+                )}
+              </View>
+            </View>
+          )}
+
+          {activeTab === "Reviews" && (
+            <View style={styles.tabContentArea}>
+              <View style={styles.section}>
+                <Text style={styles.tabSectionTitle}>Customer Reviews</Text>
+                {storeReviews.length > 0 ? (
+                  storeReviews.map((review: any) => {
+                    const userObj = review.userId || {};
+                    const reviewerName = userObj.fullName || review.userName || "Pet Parent";
+                    const profileImage = userObj.profileImage || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&q=80";
+                    const rating = review.rating || 5;
+                    const date = new Date(review.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+                    
+                    return (
+                      <View key={`review-${review._id || review.id}`} style={styles.reviewCard}>
+                        <View style={styles.reviewHeader}>
+                          <Image source={{ uri: profileImage }} style={styles.reviewerImage} />
+                          <View style={styles.reviewerInfo}>
+                            <Text style={styles.reviewerName}>{reviewerName}</Text>
+                            <Text style={styles.reviewDate}>{date}</Text>
+                          </View>
+                          <View style={styles.reviewStars}>
+                            {Array.from({ length: 5 }).map((_, idx) => (
+                              <Ionicons
+                                key={idx}
+                                name={idx < rating ? "star" : "star-outline"}
+                                size={12}
+                                color={COLORS.warning}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                        <Text style={styles.reviewText}>{review.reviewText || review.comment || "Great experience!"}</Text>
+                        {review.photos && review.photos.length > 0 && (
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.reviewPhotosRow}>
+                            {review.photos.map((photo: string, index: number) => (
+                              <TouchableOpacity key={index} onPress={() => setViewerImage(photo)}>
+                                <Image source={{ uri: photo }} style={styles.reviewPhoto} />
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        )}
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.noDataText}>No reviews submitted yet. Be the first to rate!</Text>
                 )}
               </View>
             </View>
@@ -1515,5 +1649,145 @@ const styles = StyleSheet.create({
     width: "50%",
     backgroundColor: "#E4E4E7",
     borderRadius: 4,
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  actionBtnOutline: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  actionBtnText: {
+    color: COLORS.primary,
+    fontWeight: "700",
+    fontSize: 13,
+  },
+  mapPlaceholder: {
+    height: 150,
+    backgroundColor: "#F4F4F5",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderStyle: "dashed",
+    padding: 16,
+  },
+  mapText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  mapSubText: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  productsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  productCard: {
+    width: (SCREEN_WIDTH - 52) / 2,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  productImage: {
+    width: "100%",
+    height: 120,
+  },
+  productDetails: {
+    padding: 10,
+  },
+  productBadge: {
+    fontSize: 8,
+    fontWeight: "800",
+    color: COLORS.primary,
+    textTransform: "uppercase",
+    backgroundColor: `${COLORS.primary}15`,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: "flex-start",
+    marginBottom: 4,
+  },
+  productName: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  productPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.primary,
+    marginTop: 2,
+  },
+  productStock: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 2,
+  },
+  reviewCard: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  reviewerImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  reviewerInfo: {
+    flex: 1,
+  },
+  reviewerName: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  reviewDate: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+  },
+  reviewStars: {
+    flexDirection: "row",
+    gap: 2,
+  },
+  reviewText: {
+    fontSize: 12,
+    color: COLORS.text,
+    lineHeight: 16,
+  },
+  reviewPhotosRow: {
+    marginTop: 8,
+  },
+  reviewPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 6,
+    marginRight: 8,
   },
 });

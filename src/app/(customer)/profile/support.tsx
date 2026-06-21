@@ -59,7 +59,7 @@ export default function SupportScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Contact Customer Care</Text>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => Linking.openURL("https://wa.me/15550199")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => Linking.openURL("https://wa.me/919052003723")}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="logo-whatsapp" size={20} color="#25D366" style={{ marginRight: 10 }} />
               <Text style={styles.rowItemText}>WhatsApp Support</Text>
@@ -67,7 +67,7 @@ export default function SupportScreen() {
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => Linking.openURL("tel:+15550199")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => Linking.openURL("tel:+919052003723")}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="call-outline" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
               <Text style={styles.rowItemText}>Call Support</Text>
@@ -75,7 +75,7 @@ export default function SupportScreen() {
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => Linking.openURL("mailto:support@pawconnect.com")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => Linking.openURL("mailto:pawconnect.in@gmail.com")}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons name="mail-outline" size={20} color={COLORS.primary} style={{ marginRight: 10 }} />
               <Text style={styles.rowItemText}>Email Support</Text>

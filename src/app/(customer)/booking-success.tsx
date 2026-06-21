@@ -45,14 +45,14 @@ export default function BookingSuccessScreen() {
   const distance = calculateDistance(storeLat, storeLng, custLat, custLng);
 
   const handleSupport = () => {
-    Linking.openURL("mailto:support@pawconnect.com?subject=Booking Support Request");
+    Linking.openURL("mailto:pawconnect.in@gmail.com?subject=Booking Support Request");
   };
 
   const handleContact = () => {
     if (store?.phone) {
       Linking.openURL(`tel:${store.phone}`);
     } else {
-      Linking.openURL("tel:+18005550199");
+      Linking.openURL("tel:+919052003723");
     }
   };
 

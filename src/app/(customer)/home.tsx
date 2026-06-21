@@ -3,18 +3,35 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Activi
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuthStore } from "../../store/authStore";
-import { useUiStore } from "../../store/uiStore";
-import { useStores, usePublicPromos } from "../../services/queries/hooks";
+import { useStores } from "../../services/queries/hooks";
 import { useStoresCacheStore } from "../../store/storesCacheStore";
 import { COLORS } from "../../theme/colors";
 import { StoreCard } from "../../components/cards/StoreCard";
+import { useQuery } from "@tanstack/react-query";
+import { axiosClient } from "../../services/axios/axiosClient";
 
-const CATEGORIES = [
-  { id: "grooming", name: "Grooming", icon: "cut-outline" },
-  { id: "vet", name: "Vet Clinic", icon: "medical-outline" },
-  { id: "boarding", name: "Boarding", icon: "home-outline" },
-  { id: "training", name: "school-outline" },
-];
+const ProductCard = ({ product, storeName, onPressStore }: { product: any; storeName: string; onPressStore: () => void }) => {
+  const price = product.price || 0;
+  const image = product.images?.[0] || "https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&q=80";
+
+  return (
+    <View style={styles.itemCard}>
+      <Image source={{ uri: image }} style={styles.itemImage} />
+      <View style={styles.itemInfo}>
+        <View style={styles.itemHeaderRow}>
+          <Text style={styles.itemBadge}>{product.category}</Text>
+          <Text style={styles.itemPrice}>₹{price}</Text>
+        </View>
+        <Text style={styles.itemName} numberOfLines={1}>{product.name}</Text>
+        <Text style={styles.itemDesc} numberOfLines={2}>{product.description || "High quality supplies for your pets."}</Text>
+        <TouchableOpacity style={styles.itemStoreRow} onPress={onPressStore}>
+          <Ionicons name="storefront-outline" size={12} color={COLORS.primary} style={{ marginRight: 4 }} />
+          <Text style={styles.itemStoreText} numberOfLines={1}>{storeName}</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 const screenWidth = Dimensions.get("window").width;
 
@@ -107,18 +124,50 @@ function HomeSkeleton() {
   );
 }
 
+const CUSTOMER_LAT = 12.9716;
+const CUSTOMER_LON = 77.5946;
+
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+const getStoreDistance = (store: any) => {
+  const lat = store.latitude || store.location?.latitude || store.location?.coordinates?.[1];
+  const lon = store.longitude || store.location?.longitude || store.location?.coordinates?.[0];
+  if (lat && lon) {
+    return calculateDistance(CUSTOMER_LAT, CUSTOMER_LON, Number(lat), Number(lon));
+  }
+  // deterministic fallback distance based on store name hash
+  const nameStr = store.name || "";
+  const hash = nameStr.split("").reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0);
+  return (hash % 8) + 0.8;
+};
+
 export default function CustomerHomeScreen() {
   const { user } = useAuthStore();
-  const { openModal } = useUiStore();
   const { cachedStores, setCachedStores } = useStoresCacheStore();
   const { data: fetchedStores, isLoading } = useStores();
-  const { data: promos = [] } = usePublicPromos();
   const [search, setSearch] = useState("");
-  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
   // Stale-while-revalidate pattern: use cached stores if fresh ones are loading
   const stores = (fetchedStores && fetchedStores.length > 0) ? fetchedStores : cachedStores;
   const isStoresLoading = isLoading && stores.length === 0;
+
+  // Fetch module products globally
+  const { data: allProducts = [], isLoading: isProductsLoading } = useQuery({
+    queryKey: ["global-products"],
+    queryFn: async () => {
+      const res = await axiosClient.get("/stores/modules/products");
+      return res.data?.data?.products || [];
+    }
+  });
 
   useEffect(() => {
     if (fetchedStores && fetchedStores.length > 0) {
@@ -129,21 +178,6 @@ export default function CustomerHomeScreen() {
   if (isStoresLoading) {
     return <HomeSkeleton />;
   }
-
-  // Setup swipable banners (fallback to beautiful default banner if none defined)
-  const defaultBanner = {
-    _id: "default-grooming",
-    code: "WELCOME30",
-    title: "30% Off Grooming Sessions Today",
-    description: "Book high-fidelity grooming packages today",
-    discountType: "percentage" as const,
-    discountValue: 30,
-    active: true,
-    displayOnHome: true,
-    bannerImage: "",
-    storeId: null as any
-  };
-  const bannersToDisplay = promos && promos.length > 0 ? promos : [defaultBanner];
 
   const handleCategoryPress = (category: string) => {
     router.push({
@@ -166,17 +200,27 @@ export default function CustomerHomeScreen() {
     return "Good evening 🐾";
   };
 
-  // Extract featured stores
-  const featuredStores = stores.filter((item: any) => item.isFeatured === true || (item.rating && item.rating >= 4.7));
-  const finalFeatured = featuredStores.length > 0 ? featuredStores : stores.slice(0, 4);
-
-  // Listing stores showing below (all other stores or fallback to all)
-  const listingStores = stores.filter((item: any) => {
-    const itemId = item.id || item._id;
-    return !finalFeatured.some((f: any) => (f.id || f._id) === itemId);
+  // Filter approved stores (only filter out blocked/rejected stores)
+  const approvedStores = stores.filter((item: any) => {
+    if (!item.status) return true;
+    const status = item.status.toLowerCase();
+    return status !== "rejected" && status !== "blocked" && status !== "suspended";
   });
-  
-  const finalListing = listingStores.length > 0 ? listingStores : stores;
+
+  const getStoreName = (storeId: string) => {
+    const store = approvedStores.find((s: any) => (s._id || s.id) === storeId);
+    return store ? store.name : "Happy Paws Store";
+  };
+
+  // Extract featured stores: Only show actual featured stores
+  const finalFeatured = approvedStores.filter((item: any) => {
+    return item.isFeatured === true;
+  });
+
+  // Extract nearby stores: Approved, sorted by nearest first
+  const nearbyStores = [...approvedStores].sort((a: any, b: any) => {
+    return getStoreDistance(a) - getStoreDistance(b);
+  });
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
@@ -197,7 +241,7 @@ export default function CustomerHomeScreen() {
         <Ionicons name="search-outline" size={20} color={COLORS.textMuted} style={{ marginRight: 10 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search grooming, vets, boarding..."
+          placeholder="Search stores, services, products..."
           placeholderTextColor={COLORS.textMuted}
           value={search}
           onChangeText={setSearch}
@@ -209,76 +253,6 @@ export default function CustomerHomeScreen() {
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Promo Banner / Carousel */}
-      {/* <View style={styles.bannerContainer}>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onScroll={(e) => {
-            const index = Math.round(e.nativeEvent.contentOffset.x / (screenWidth - 40));
-            setActiveBannerIndex(index);
-          }}
-          scrollEventThrottle={16}
-        >
-          {bannersToDisplay.map((banner, index) => (
-            <TouchableOpacity
-              key={banner._id || index}
-              activeOpacity={0.9}
-              style={[styles.banner, { width: screenWidth - 40, marginRight: bannersToDisplay.length > 1 ? 10 : 0 }]}
-              onPress={() => {
-                if (banner.storeId) {
-                  router.push(`/store/${banner.storeId._id || banner.storeId}` as any);
-                } else {
-                  router.push("/services" as any);
-                }
-              }}
-            >
-              {banner.bannerImage ? (
-                <View style={{ width: "100%", height: "100%", position: "relative" }}>
-                  <Image
-                    source={{ uri: banner.bannerImage }}
-                    style={{ width: "100%", height: "100%", borderRadius: 14 }}
-                    resizeMode="cover"
-                  />
-                  <View style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: 12, backgroundColor: "rgba(0,0,0,0.5)", borderBottomLeftRadius: 14, borderBottomRightRadius: 14 }}>
-                    <Text style={[styles.bannerLabel, { textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 3 }]}>{banner.code}</Text>
-                    <Text style={[styles.bannerTitle, { fontSize: 14, marginBottom: 0, lineHeight: 18, textShadowColor: "rgba(0,0,0,0.8)", textShadowRadius: 3 }]}>{banner.title}</Text>
-                  </View>
-                </View>
-              ) : (
-                <View style={{ flex: 1, flexDirection: "row" }}>
-                  <View style={styles.bannerLeft}>
-                    <Text style={styles.bannerLabel}>{banner.code}</Text>
-                    <Text style={styles.bannerTitle}>{banner.title}</Text>
-                    <View style={styles.bannerBtn}>
-                      <Ionicons name="calendar-outline" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
-                      <Text style={styles.bannerBtnText}>Claim now</Text>
-                    </View>
-                  </View>
-                  <View style={styles.bannerRight}>
-                    <Ionicons name="gift-outline" size={80} color="rgba(255, 255, 255, 0.2)" />
-                  </View>
-                </View>
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        {bannersToDisplay.length > 1 && (
-          <View style={styles.dotsRow}>
-            {bannersToDisplay.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  activeBannerIndex === index && styles.dotActive
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </View> */}
 
       {/* Redesigned Veterinary Care & Emergency Assistance Redirection Banner */}
       <TouchableOpacity
@@ -302,54 +276,14 @@ export default function CustomerHomeScreen() {
         </View>
       </TouchableOpacity>
 
-      {/* Section: Featured Stores (Horizontal Scroll) */}
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Featured Stores</Text>
-        <TouchableOpacity onPress={() => router.push("/stores" as any)}>
-          <Text style={styles.seeAll}>See all</Text>
-        </TouchableOpacity>
-      </View>
-
-      {isStoresLoading ? (
-        <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 24 }} />
-      ) : finalFeatured.length === 0 ? (
-        <Text style={styles.emptyText}>No featured stores available.</Text>
-      ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.horizontalList}
-          contentContainerStyle={{ gap: 4, paddingRight: 20 }}
-        >
-          {finalFeatured.map((item) => {
-            const storeId = item.id || (item as any)._id;
-            return (
-              <StoreCard
-                key={`featured-${storeId}`}
-                store={item}
-                horizontal
-                onPress={() => router.push(`/store/${storeId}` as any)}
-              />
-            );
-          })}
-        </ScrollView>
-      )}
-
-      {/* Section Header: Services */}
-      <View style={[styles.sectionHeader, { marginBottom: 16, marginTop: 16 }]}>
+      {/* Categories Section - Services */}
+      <View style={[styles.sectionHeader, { marginBottom: 12, marginTop: 4 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.sectionTitle}>Services</Text>
-          <Text style={styles.sectionSubtitleText}>Everything your pet needs, all in one place 🐾</Text>
+          <Text style={styles.sectionTitle}>Pet Services</Text>
+          <Text style={styles.sectionSubtitleText}>Book trusted services for your furry friend 🐾</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push("/services" as any)}>
-          <View style={{ flexDirection: "row", alignItems: "center" }}>
-            <Text style={styles.seeAllServicesText}>View all services</Text>
-            <Ionicons name="chevron-forward" size={12} color="#C2410C" />
-          </View>
-        </TouchableOpacity>
       </View>
 
-      {/* Horizontal Scroll of Rounded Circles */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -357,16 +291,17 @@ export default function CustomerHomeScreen() {
         style={{ marginBottom: 20 }}
       >
         {[
+          { id: "Veterinary", label: "Veterinary", icon: "pulse-outline", bg: "#F0F6FF", color: "#3B82F6" },
           { id: "Grooming", label: "Grooming", icon: "cut-outline", bg: "#FFF8F6", color: "#FF6B35" },
-          { id: "Vet Clinic", label: "Vet Clinic", icon: "pulse-outline", bg: "#F0F6FF", color: "#3B82F6" },
+          { id: "Dog Walking", label: "Dog Walking", icon: "walk-outline", bg: "#FFFDF2", color: "#D97706" },
           { id: "Boarding", label: "Boarding", icon: "home-outline", bg: "#F0FDF4", color: "#16A34A" },
           { id: "Training", label: "Training", icon: "school-outline", bg: "#FAF5FF", color: "#7C3AED" },
-          { id: "Emergency", label: "Emergency", icon: "home-outline", bg: "#FFF8F6", color: "#ef0d0dff" },
+          { id: "Emergency Care", label: "Emergency", icon: "alert-circle-outline", bg: "#FFF5F5", color: "#EF4444" },
         ].map((item) => (
           <TouchableOpacity
             key={item.id}
             style={styles.circularServiceItem}
-            onPress={() => router.push({ pathname: "/services", params: { select: item.id } } as any)}
+            onPress={() => handleCategoryPress(item.id)}
           >
             <View style={[styles.circularIconWrapper, { backgroundColor: item.bg, borderColor: `${item.color}25` }]}>
               <Ionicons name={item.icon as any} size={24} color={item.color} />
@@ -376,24 +311,130 @@ export default function CustomerHomeScreen() {
         ))}
       </ScrollView>
 
-      {/* Section: Nearby Stores */}
-      <View style={[styles.sectionHeader, { marginTop: 28 }]}>
-        <Text style={styles.sectionTitle}>Nearby Stores</Text>
+      {/* Categories Section - Products */}
+      <View style={[styles.sectionHeader, { marginBottom: 12 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.sectionTitle}>Pet Supplies</Text>
+          <Text style={styles.sectionSubtitleText}>High-quality supplies for everyday pet care 🛍️</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.horizontalServicesContainer}
+        style={{ marginBottom: 24 }}
+      >
+        {[
+          { id: "Food", label: "Food", icon: "paw-outline", bg: "#FEF3C7", color: "#D97706" },
+          { id: "Toys", label: "Toys", icon: "football-outline", bg: "#ECFDF5", color: "#059669" },
+          { id: "Medicines", label: "Medicines", icon: "bandage-outline", bg: "#F3F4F6", color: "#6B7280" },
+          { id: "Accessories", label: "Accessories", icon: "ribbon-outline", bg: "#FDF2F8", color: "#DB2777" },
+        ].map((item) => (
+          <TouchableOpacity
+            key={item.id}
+            style={styles.circularServiceItem}
+            onPress={() => handleCategoryPress(item.id)}
+          >
+            <View style={[styles.circularIconWrapper, { backgroundColor: item.bg, borderColor: `${item.color}25` }]}>
+              <Ionicons name={item.icon as any} size={24} color={item.color} />
+            </View>
+            <Text style={styles.circularServiceText}>{item.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* Section: Featured Stores (Horizontal Scroll) */}
+      {finalFeatured.length > 0 && (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Featured Stores</Text>
+            <TouchableOpacity onPress={() => router.push({ pathname: "/stores", params: { featured: "true" } } as any)}>
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.horizontalList}
+            contentContainerStyle={{ gap: 4, paddingRight: 20 }}
+          >
+            {finalFeatured.map((item) => {
+              const storeId = item.id || (item as any)._id;
+              return (
+                <StoreCard
+                  key={`featured-${storeId}`}
+                  store={item}
+                  horizontal
+                  distance={getStoreDistance(item)}
+                  onPress={() => router.push(`/store/${storeId}` as any)}
+                />
+              );
+            })}
+          </ScrollView>
+        </>
+      )}
+
+      {/* Section: Stores (Horizontal Scroll) */}
+      <View style={[styles.sectionHeader, { marginTop: 12 }]}>
+        <Text style={styles.sectionTitle}>Stores</Text>
+        <TouchableOpacity onPress={() => router.push("/stores" as any)}>
+          <Text style={styles.seeAll}>See all</Text>
+        </TouchableOpacity>
       </View>
 
       {isStoresLoading ? (
         <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 24 }} />
-      ) : finalListing.length === 0 ? (
-        <Text style={styles.emptyText}>No stores available nearby.</Text>
+      ) : nearbyStores.length === 0 ? (
+        <Text style={styles.emptyText}>No stores available.</Text>
       ) : (
-        <View style={styles.verticalListContainer}>
-          {finalListing.map((item) => {
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.horizontalList}
+          contentContainerStyle={{ gap: 4, paddingRight: 20 }}
+        >
+          {nearbyStores.map((item) => {
             const storeId = item.id || (item as any)._id;
             return (
               <StoreCard
                 key={`nearby-${storeId}`}
                 store={item}
+                horizontal
+                distance={getStoreDistance(item)}
                 onPress={() => router.push(`/store/${storeId}` as any)}
+              />
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {/* Section: Popular Products (Vertical List) */}
+      <View style={[styles.sectionHeader, { marginTop: 12 }]}>
+        <Text style={styles.sectionTitle}>Popular Products</Text>
+        <TouchableOpacity onPress={() => router.push({ pathname: "/stores", params: { tab: "products" } } as any)}>
+          <Text style={styles.seeAll}>See all</Text>
+        </TouchableOpacity>
+      </View>
+
+      {isProductsLoading ? (
+        <ActivityIndicator size="small" color={COLORS.primary} style={{ marginVertical: 24 }} />
+      ) : allProducts.length === 0 ? (
+        <Text style={styles.emptyText}>No products available.</Text>
+      ) : (
+        <View style={styles.verticalListContainer}>
+          {allProducts.slice(0, 6).map((item: any) => {
+            const storeId = item.storeId;
+            return (
+              <ProductCard
+                key={`prod-${item._id || item.id}`}
+                product={item}
+                storeName={getStoreName(storeId)}
+                onPressStore={() => {
+                  if (storeId) {
+                    router.push(`/store/${storeId}` as any);
+                  }
+                }}
               />
             );
           })}
@@ -756,5 +797,69 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#E4E4E7",
     marginBottom: 16,
+  },
+  verticalListContainer: {
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  itemCard: {
+    flexDirection: "row",
+    backgroundColor: COLORS.surface || "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border || "#E4E4E7",
+    padding: 12,
+    marginBottom: 12,
+  },
+  itemImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  itemInfo: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  itemHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  itemBadge: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    backgroundColor: "#FEF3C7",
+    color: "#D97706",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: COLORS.primary,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.text || "#18181B",
+    marginTop: 4,
+  },
+  itemDesc: {
+    fontSize: 11,
+    color: COLORS.textMuted || "#71717A",
+    marginTop: 2,
+  },
+  itemStoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  itemStoreText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.primary,
   },
 });

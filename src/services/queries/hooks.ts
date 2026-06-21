@@ -269,3 +269,80 @@ export const usePublicPromos = () => {
     },
   });
 };
+
+export const useStoreProducts = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-products", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreProducts(storeId);
+      return res.data.products;
+    },
+    enabled: !!storeId,
+  });
+};
+
+export const useStoreDoctors = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-doctors", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreDoctors(storeId);
+      return res.data.doctors;
+    },
+    enabled: !!storeId,
+  });
+};
+
+export const useStoreGroomingPackages = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-grooming-packages", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreGroomingPackages(storeId);
+      return res.data.packages;
+    },
+    enabled: !!storeId,
+  });
+};
+
+export const useStoreBoardingPackages = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-boarding-packages", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreBoardingPackages(storeId);
+      return res.data.packages;
+    },
+    enabled: !!storeId,
+  });
+};
+
+export const useStoreTrainingPrograms = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-training-programs", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreTrainingPrograms(storeId);
+      return res.data.programs;
+    },
+    enabled: !!storeId,
+  });
+};
+
+export const useStoreEmergency = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-emergency", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreEmergency(storeId);
+      return res.data.emergencyDetail;
+    },
+    enabled: !!storeId,
+  });
+};
+
+export const useStoreReviews = (storeId: string) => {
+  return useQuery({
+    queryKey: ["store-reviews", storeId],
+    queryFn: async () => {
+      const res = await storeApi.getStoreReviews(storeId);
+      return res.data.reviews;
+    },
+    enabled: !!storeId,
+  });
+};

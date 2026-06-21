@@ -36,4 +36,51 @@ export const storeApi = {
     const response = await axiosClient.get<ApiResponse<any>>("/stores/dashboard");
     return response.data;
   },
+
+  getStoreProducts: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ products: any[] }>>("/stores/modules/products", {
+      params: { storeId }
+    });
+    return response.data;
+  },
+
+  getStoreDoctors: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ doctors: any[] }>>("/stores/modules/veterinary/doctors", {
+      params: { storeId }
+    });
+    return response.data;
+  },
+
+  getStoreGroomingPackages: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ packages: any[] }>>("/stores/modules/grooming/packages", {
+      params: { storeId }
+    });
+    return response.data;
+  },
+
+  getStoreBoardingPackages: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ packages: any[] }>>("/stores/modules/boarding/packages", {
+      params: { storeId }
+    });
+    return response.data;
+  },
+
+  getStoreTrainingPrograms: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ programs: any[] }>>("/stores/modules/training/programs", {
+      params: { storeId }
+    });
+    return response.data;
+  },
+
+  getStoreEmergency: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ emergencyDetail: any }>>("/stores/modules/emergency", {
+      params: { storeId }
+    });
+    return response.data;
+  },
+
+  getStoreReviews: async (storeId: string) => {
+    const response = await axiosClient.get<ApiResponse<{ reviews: any[] }>>(`/reviews/store/${storeId}`);
+    return response.data;
+  },
 };

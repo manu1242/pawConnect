@@ -17,6 +17,12 @@ import { useUiStore } from "../../../store/uiStore";
 import { authApi } from "../../../services/api/authApi";
 import { CustomInput } from "../../../components/common/CustomInput";
 import { CustomButton } from "../../../components/common/CustomButton";
+import {
+  LEGAL_ABOUT,
+  PRIVACY_POLICY,
+  TERMS_AND_CONDITIONS,
+  REFUND_POLICY,
+} from "../../../constants/legal";
 
 export default function SettingsScreen() {
   const { clearAuth } = useAuthStore();
@@ -113,22 +119,22 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Legal & Policies</Text>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("About PawConnect", "PawConnect is the ultimate companion app for booking elite services, tracking medical health, and managing pet care records all in one seamless environment.")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("About PawConnect", LEGAL_ABOUT)}>
             <Text style={styles.rowItemText}>About PawConnect</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("Terms & Conditions", "By accessing or utilizing the PawConnect mobile application and related API services, you agree to comply with standard service booking rules, host compliance requirements, and data privacy frameworks.")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("Terms & Conditions", TERMS_AND_CONDITIONS)}>
             <Text style={styles.rowItemText}>Terms & Conditions</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("Privacy Policy", "We encrypt user credentials using bcrypt, rotate refresh tokens via secure JWT keys, and never transmit your pet registry information or geographic coordinates to unauthorized third parties.")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("Privacy Policy", PRIVACY_POLICY)}>
             <Text style={styles.rowItemText}>Privacy Policy</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("Refund Policy", "Bookings can be cancelled up to 24 hours prior to the scheduled slot for a full refund back to the original payment source. Late cancelations are subject to partial fees.")}>
+          <TouchableOpacity style={styles.rowItem} onPress={() => showLegal("Refund Policy", REFUND_POLICY)}>
             <Text style={styles.rowItemText}>Refund Policy</Text>
             <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
           </TouchableOpacity>

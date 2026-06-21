@@ -8,9 +8,10 @@ interface StoreCardProps {
   store: Store;
   onPress: () => void;
   horizontal?: boolean;
+  distance?: number;
 }
 
-export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, horizontal = false }) => {
+export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, horizontal = false, distance }) => {
   const rating = store.rating !== undefined ? Number(store.rating.toFixed(1)) : 0;
   const reviewCount = store.totalReviews || 0;
 
@@ -35,6 +36,13 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, horizontal
     addressText = addr.area ? `${addr.area}, ${addr.city}` : addr.city || "Bengaluru";
   }
 
+  // Format distance
+  const distanceFormatted = distance !== undefined 
+    ? `${distance.toFixed(1)} km away` 
+    : undefined;
+
+  const isStoreFeatured = store.isFeatured === true;
+
   return (
     <TouchableOpacity
       style={[styles.card, horizontal ? styles.cardHorizontal : styles.cardVertical]}
@@ -51,6 +59,22 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, horizontal
           source={{ uri: logoUri }}
           style={styles.logoAvatar}
         />
+        {/* Featured Store Pill Overlay */}
+        {isStoreFeatured && (
+          <View style={styles.featuredBadgeOverlay}>
+            <Ionicons name="star" size={10} color="#FFFFFF" style={{ marginRight: 3 }} />
+            <Text style={styles.featuredBadgeText}>Featured Store</Text>
+          </View>
+        )}
+        {/* Status Badge Overlay if not approved */}
+        {store.status && store.status.toLowerCase() !== "approved" && (
+          <View style={[
+            styles.statusBadgeOverlay,
+            { backgroundColor: store.status.toLowerCase() === "pending" ? "#F59E0B" : "#EF4444" }
+          ]}>
+            <Text style={styles.statusBadgeText}>{store.status}</Text>
+          </View>
+        )}
       </View>
       
       <View style={styles.content}>
@@ -58,7 +82,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, horizontal
           <Text style={styles.category}>{category}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={COLORS.warning} />
-            <Text style={styles.ratingText}>{rating}</Text>
+            <Text style={styles.ratingText}>{rating > 0 ? rating : "4.5"}</Text>
             <Text style={styles.reviewsText}>({reviewCount} reviews)</Text>
           </View>
         </View>
@@ -70,12 +94,15 @@ export const StoreCard: React.FC<StoreCardProps> = ({ store, onPress, horizontal
         <View style={styles.infoRow}>
           <Ionicons name="location-outline" size={14} color={COLORS.textMuted} />
           <Text style={styles.infoText} numberOfLines={1}>
-            {addressText}
+            {addressText} {distanceFormatted ? `• ${distanceFormatted}` : ""}
           </Text>
         </View>
 
         <View style={styles.footerRow}>
           <Text style={styles.statusOpen}>Open Now</Text>
+          {distanceFormatted && (
+            <Text style={styles.distanceTextSmall}>{distanceFormatted}</Text>
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -90,6 +117,58 @@ const styles = StyleSheet.create({
     borderColor: COLORS.glassBorder,
     overflow: "hidden",
     ...SHADOWS.sm,
+  },
+  featuredBadgeOverlay: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  featuredBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  statusBadgeOverlay: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "#F59E0B",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+    zIndex: 10,
+  },
+  statusBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  distanceTextSmall: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: COLORS.primary,
   },
   cardHorizontal: {
     width: 325,
